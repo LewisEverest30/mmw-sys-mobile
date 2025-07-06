@@ -1,348 +1,332 @@
 <template>
-  <div class="health-dashboard">
-    <div class="dashboard-content">
-      <div class="chart-panel">
-        <div class="chart-container">
-          <div class="chart-header">
-            <h2>心率变异性 (HRV)
-              <div class="info-icon" @mouseover="showHRVInfo = true" @mouseleave="showHRVInfo = false">
-                <span>i</span>
-              </div>
-            </h2>
-            <div class="stress-value">
-              当前HRV值: <span>{{ stressValue }}</span>
-            </div>
-            <div v-show="showHRVInfo" class="tooltip">
-              HRV是指心跳间隔（RR间期）的微小波动，反映了心脏在自主神经系统调节下的健康状态。
-              较高的HRV通常表示更好的压力适应能力和较强的心血管健康水平，而较低的HRV可能提示压力过大或健康状态受损。
-            </div>
+  <div class="root-container">
+    <div class="monitor-container">
+      <div class="chart-header">
+        <h2 class="section-title">
+          心率变异性 (HRV)
+          <div class="info-icon" @mouseover="showHRVInfo = true" @mouseleave="showHRVInfo = false">
+            <span style="font-size: 0.8em;">i</span>
           </div>
-          <div class="chart-wrapper">
-            <canvas ref="hrvChartRef"></canvas>
-          </div>
-          <div v-if="showHRVInfo" class="sdnn-info-box">
-            <h3>SDNN（标准差）：</h3>
-            <p>单位为毫秒（ms），表示RR间期(心跳间隔)的标准差。</p>
-            <h4>SDNN参考范围:</h4>
-            <ul>
-              <li><strong>高水平（> 100 ms）：</strong> 良好的心血管健康</li>
-              <li><strong>中等水平（50–100 ms）：</strong> 正常范围</li>
-              <li><strong>低水平（< 50 ms）：</strong> 潜在健康风险</li>
-            </ul>
-          </div>
+        </h2>
+        <div class="status-text">
+          <span class="status-text-label">当前HRV值: </span><span class="status-text-content">{{ stressValue }}</span>
         </div>
+      </div>
+      <div ref="chartRef" class="chart-container"></div>
+      <div v-if="showHRVInfo" class="sdnn-info-box">
+        <h2>HRV是指心跳间隔（RR间期）的微小波动</h2>
+        <h3>SDNN（标准差）：</h3>
+        <p>单位为毫秒（ms），表示RR间期(心跳间隔)的标准差。</p>
+        <h4>SDNN参考范围:</h4>
+        <ul>
+          <li><strong>高水平（> 100 ms）：</strong> 良好的心血管健康</li>
+          <li><strong>中等水平（50–100 ms）：</strong> 正常范围</li>
+          <li><strong>低水平（< 50 ms）：</strong> 潜在健康风险</li>
+        </ul>
       </div>
     </div>
   </div>
 </template>
 
+
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
-import { Chart, ChartType } from 'chart.js/auto'
+import * as echarts from 'echarts'
+import type { ECharts } from 'echarts'
 import { getHrvData } from '@/api/history'
-import { getStress } from '@/api/heart'
+import { convertTimestampToTimeHM } from '@/utils/timestamp'
+import { calculateEchartsFontSize, calculateEchartsLineWidth } from '@/utils/echarts'
+import { generateMockData } from '@/utils/mocks/HRVMock'
 
 // 路由信息
 const route = useRoute()
-const uid = computed(() => route.params.userId as string || '1')
+const userId = computed(() => route.params.userId as string)
 
 // 状态定义
 const showHRVInfo = ref(false)
 const stressValue = ref('0')
-const hrvChartRef = ref<HTMLCanvasElement | null>(null)
-const hrvData = ref<number[]>([])
+const chartRef = ref<HTMLElement | null>(null)
+const intervalId = ref<number | null>(null)
+const chartData = ref<(number | null)[]>([])
 const timeStamps = ref<number[]>([])
-const isInBed = ref(true)
-const startTime = ref('')
-const endTime = ref('')
-const updateTimer = ref<number | null>(null)
+const isInBed = ref<boolean | null>(null)
 
-let hrvChart: Chart<ChartType> | null = null
+let chart: ECharts | null = null
+let resizeObserver: ResizeObserver | null = null
 
-// 时间格式化函数
-const formatDateTime = (date: Date): string => {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  const hours = String(date.getHours()).padStart(2, '0')
-  const minutes = String(date.getMinutes()).padStart(2, '0')
-  const seconds = String(date.getSeconds()).padStart(2, '0')
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
-}
-
-// 更新时间范围
-const updateTimeRange = (): void => {
-  const end = new Date()
-  const start = new Date(end.getTime() - 60 * 10 * 1000) // 10分钟前
-  endTime.value = formatDateTime(end)
-  startTime.value = formatDateTime(start)
-}
-
-// 格式化时间戳
-const formatTimeStamp = (timestamp: number): string => {
-  const date = new Date(timestamp * 1000)
-  const hours = String(date.getHours()).padStart(2, '0')
-  const minutes = String(date.getMinutes()).padStart(2, '0')
-  return `${hours}:${minutes}`
-}
-
-// 初始化HRV图表
-const initHRVChart = async (): Promise<void> => {
-  if (!hrvChartRef.value) return
-
-  try {
-    const ctx = hrvChartRef.value.getContext('2d')
-    if (!ctx) return
-
-    const response = await getHrvData({
-      uid: uid.value,
-      start_time: startTime.value,
-      end_time: endTime.value,
-    })
-
-    if (response.code === 20000 && response.data) {
-      hrvData.value = response.data.hrv_data
-      timeStamps.value = response.data.time_stamp
-      
-      // 找到最后一个非-1的值作为当前HRV值
-      const lastValidValue = [...hrvData.value].reverse().find(value => value !== -1)
-      stressValue.value = hrvData.value[hrvData.value.length - 1] === -1 
-        ? '/' 
-        : (lastValidValue ? Math.round(lastValidValue).toString() : '0')
-
-      if (hrvChart) hrvChart.destroy()
-      
-      const formattedLabels = timeStamps.value.map(formatTimeStamp)
-      const purpleGradient = ctx.createLinearGradient(0, 0, 0, ctx.canvas.height)
-      purpleGradient.addColorStop(0, 'rgba(139, 92, 246, 0.6)')
-      purpleGradient.addColorStop(1, 'rgba(139, 92, 246, 0)')
-
-      hrvChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: formattedLabels,
-          datasets: [{
-            label: 'HRV',
-            data: hrvData.value.map(value => value === -1 ? null : value),
-            borderColor: '#8B5CF6',
-            backgroundColor: purpleGradient,
-            fill: true,
-            pointRadius: 0,
-            pointHoverRadius: 5,
-            spanGaps: false
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            y: {
-              beginAtZero: true,
-              title: {
-                display: true,
-                text: 'SDNN(ms)'
-              }
-            },
-            x: {
-              title: {
-                display: true,
-                text: '时间'
-              },
-              ticks: {
-                autoSkip: true,
-                maxRotation: 0
-              },
-              grid: {
-                display: false
-              }
-            }
-          },
-          plugins: {
-            legend: {
-              display: true,
-              position: 'top',
-              labels: {
-                color: '#666',
-                boxWidth: 12
-              }
-            },
-            tooltip: {
-              backgroundColor: 'rgba(0,0,0,0.7)',
-              titleColor: '#fff',
-              bodyColor: '#fff',
-              borderColor: 'rgba(255,255,255,0.2)',
-              borderWidth: 1,
-              mode: 'index',
-              intersect: false
-            }
-          },
-          hover: {
-            mode: 'index',
-            intersect: false
-          }
-        }
-      })
-    }
-  } catch (error) {
-    console.error('初始化HRV图表出错:', error)
+// 使用模拟数据的函数
+const useMockData = () => {
+  const { mockData, mockTimestamps } = generateMockData()
+  
+  chartData.value = mockData
+  timeStamps.value = mockTimestamps
+  isInBed.value = true // 模拟在床状态
+  
+  // 设置当前HRV值
+  const lastValidValue = [...mockData].reverse().find(v => v !== null)
+  stressValue.value = lastValidValue == null ? '/' : lastValidValue.toString()
+  
+  if (chart) {
+    chart.clear()
+    chart.setOption(getChartOption(mockData, mockTimestamps.map(convertTimestampToTimeHM)))
   }
 }
+
 
 // 更新图表数据
-const updateChartData = async (): Promise<void> => {
+const updateChart = async () => {
   try {
-    const response = await getHrvData({
-      uid: uid.value,
-      start_time: startTime.value,
-      end_time: endTime.value,
+    const now = Math.floor(Date.now() / 1000)
+    const tenMinAgo = now - 10 * 60
+    const endTime = now
+    const startTime = tenMinAgo
+
+    const res = await getHrvData({
+      uid: userId.value,
+      start_time: new Date(startTime * 1000).toISOString().slice(0, 19).replace('T', ' '),
+      end_time: new Date(endTime * 1000).toISOString().slice(0, 19).replace('T', ' '),
     })
+    if (res?.code === 20000 && res.data) {
+      chartData.value = res.data.hrv_data.map((v: number) => v === -1 ? null : v)
+      timeStamps.value = res.data.time_stamp
+      isInBed.value = res.data.is_in_bed
 
-    if (response.code === 20000 && response.data) {
-      const newHrvData = response.data.hrv_data
-      const newTimeStamps = response.data.time_stamp
-      isInBed.value = response.data.is_in_bed
-      
-      // 清空图表逻辑
-      if (!isInBed.value) {
-        stressValue.value = '/'
-        if (hrvChart) {
-          hrvChart.data.labels = []
-          hrvChart.data.datasets[0].data = []
-          hrvChart.update()
-        }
-        return
-      }
-      
-      // 只显示最新的 HRV 值，并转换为整数
-      const latestHrvValue = newHrvData[newHrvData.length - 1]
-      stressValue.value = latestHrvValue === -1 ? '/' : Math.round(latestHrvValue).toString()
+      // HRV值显示
+      const lastValidValue = [...chartData.value].reverse().find(v => v !== null)
+      stressValue.value = lastValidValue == null ? '/' : Math.round(lastValidValue).toString()
 
-      // 更新图表数据
-      if (hrvChart) {
-        hrvChart.data.labels = newTimeStamps.map(formatTimeStamp)
-        hrvChart.data.datasets[0].data = newHrvData.map(value => value === -1 ? null : Math.round(value))
-        hrvChart.update()
+      if (chart) {
+        chart.clear()
+        chart.setOption(getChartOption(chartData.value, timeStamps.value.map(convertTimestampToTimeHM)))
       }
     }
   } catch (error) {
-    console.error('更新图表时出错:', error)
+    console.error('Error updating HRV chart:', error)
   }
 }
 
-// 启动自动更新
-const startAutoUpdate = (): void => {
-  // 先执行一次更新
-  updateTimeRange()
-  initHRVChart()
-  
-  // 设置5秒定时更新
-  updateTimer.value = window.setInterval(() => {
-    updateTimeRange()
-    updateChartData()
+// 图表配置函数
+const getChartOption = (displayData: (number | null)[], xAxisData: string[]) => {
+  const fontSize = calculateEchartsFontSize(chartRef.value, 0.9) // 获取字体大小
+  const lineWidth = calculateEchartsLineWidth(chartRef.value, 1) // 获取线宽
+
+  return {
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(0,0,0,0.7)',
+      textStyle: { color: '#fff' },
+      borderColor: 'rgba(255,255,255,0.2)'
+    },
+    xAxis: {
+      type: 'category',
+      data: xAxisData,
+      splitLine: {
+        show: false
+      },
+      axisLabel: {
+        show: true,
+        interval: Math.floor(chartData.value.length / 5),
+        textStyle: {
+          color: '#666',
+          fontSize: fontSize
+        }
+      },
+      axisTick: {
+        alignWithLabel: true,
+        length: lineWidth*2
+      },
+      axisLine: {
+        lineStyle: {
+          color: '#666',
+          width: lineWidth*0.5
+        }
+      },
+    },
+    yAxis: {
+      type: 'value',
+      name: 'SDNN(ms)',
+      min: 0,
+      show: true,
+      splitLine: {
+        show: true,
+        lineStyle: {
+          color: '#e0e0e0',
+          type: 'solid',
+          width: lineWidth*0.5,
+        }
+      },
+      axisLine: {
+        lineStyle: {
+          color: '#666',
+          width: lineWidth*0.5
+        }
+      },
+    },
+    series: !isInBed.value ? [] : [{
+      name: 'HRV',
+      type: 'line',
+      data: displayData,
+      smooth: true,
+      symbol: 'none',
+      areaStyle: {
+        color: {
+          type: 'linear',
+          x: 0,
+          y: 0,
+          x2: 0,
+          y2: 1,
+          colorStops: [
+            { offset: 0, color: 'rgba(139, 92, 246, 0.6)' },
+            { offset: 1, color: 'rgba(139, 92, 246, 0)' }
+          ]
+        }
+      },
+      itemStyle: {
+        color: '#8B5CF6'
+      }
+    }]
+  }
+}
+
+// 启动定时更新
+const startUpdatingChart = () => {
+  intervalId.value = window.setInterval(() => {
+    // updateChart()
+    useMockData() // 使用模拟数据
   }, 5000)
 }
 
+// 调整图表大小
+const resizeChart = () => {
+  if (chart) {
+    chart.resize()
+  }
+}
+
 // 生命周期钩子
-onMounted(() => {
-  // 启动自动更新
-  startAutoUpdate()
+onMounted(async () => {
+  if (chartRef.value) {
+    chart = echarts.init(chartRef.value)
+  }
+  // await updateChart()
+  useMockData() // 使用模拟数据
+
+  startUpdatingChart()
+  if (chartRef.value) {
+    resizeObserver = new ResizeObserver(() => {
+      resizeChart()
+    })
+    resizeObserver.observe(chartRef.value)
+  }
 })
 
 onBeforeUnmount(() => {
-  // 清理定时器
-  if (updateTimer.value) {
-    clearInterval(updateTimer.value)
-    updateTimer.value = null
+  if (intervalId.value) {
+    clearInterval(intervalId.value)
+    intervalId.value = null
   }
-  
-  // 销毁图表
-  if (hrvChart) {
-    hrvChart.destroy()
-    hrvChart = null
+  if (chart) {
+    chart.dispose()
+    chart = null
+  }
+  if (resizeObserver && chartRef.value) {
+    resizeObserver.unobserve(chartRef.value)
+    resizeObserver = null
   }
 })
 </script>
 
 <style scoped>
-.health-dashboard {
-  font-family: 'Helvetica Neue', Arial, sans-serif;
-  color: #333;
-  background-color: #ffffff;
-  padding: 20px;
-  border-radius: 10px;
-  height: 100%;
-}
-
-.dashboard-content {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  height: 100%;
-}
-
-.chart-panel {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 24px;
-  height: 100%;
-}
-
-@media (min-width: 1024px) {
-  .chart-panel {
-    grid-template-columns: 1fr;
-  }
-}
-
-.chart-container {
-  background: white;
-  padding: 24px;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+/* 根容器：居中 + 灰底 */
+.root-container {
+  width: 100%;
   height: 100%;
   display: flex;
-  flex-direction: column;
-}
-
-.chart-header {
-  display: flex;
+  justify-content: center;
   align-items: center;
-  position: relative;
+  background-color: #f0f4f8;
+  font-family: 'Arial', sans-serif;
+  position: relative; /* 添加相对定位作为参考点 */
+}
+
+/* 白色内容卡片 */
+.monitor-container {
+  width: 100%;
+  height: 100%;
+  background: #fff;
+  border-radius: 0.625em;
+  box-shadow: 0 0.125em 0.25em rgba(0, 0, 0, 0.1);
+  padding: 0.625em;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
   justify-content: space-between;
-  margin-bottom: 20px;
-}
-
-.chart-header h2 {
-  font-size: 18px;
-  font-weight: bold;
-  color: #333;
-  margin: 0;
-  display: flex;
   align-items: center;
 }
 
-.stress-value {
-  font-size: 14px;
-  color: #333;
+/* 标题区 */
+.chart-header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 1% 2%;
+}
+.section-title {
+  font-size: 1.5em;
+  color: #2c3e50;
+  letter-spacing: 0.03em;
+  margin-bottom: 0;
+  margin-top: 1%;
+  padding-left: 1%;
+}
+.status-text {
+  font-size: 1em;
   font-weight: bold;
+  transition: color 0.3s ease;
+  background-color: #f8f9fa;
+  padding: 1%;
+  margin-right: 1vw;
+  border-radius: 0.3125em;
+  border: #a3a3a3 0.0625em;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
-
-.stress-value span {
+.status-text-content {
   color: #8B5CF6;
-  margin-left: 4px;
+  margin-left: 0.25em;
+}
+.status-text-label {
+  color: #2c3e50c4;
+  margin-right: 0.1em;
 }
 
+/* 图表区域 */
+.chart-container {
+  width: 100%;
+  height: calc(100% - 1vh);
+  border-radius: 1.2em;
+  overflow: hidden;
+  box-shadow: 
+    0 0.25em 0.5em rgba(0, 0, 0, 0.1),
+    inset 0 0.0625em 0.125em rgba(255, 255, 255, 0.1)
+    ;
+  transition: all 0.3s ease;
+  font-size: 1em;
+}
+
+/* 小提示图标 */
 .info-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 1em;
+  height: 1em;
   border-radius: 50%;
   background-color: #8B5CF6;
-  color: white;
-  font-size: 12px;
-  margin-left: 8px;
+  color: #fff;
+  font-size: 0.8em;
+  margin-left: 0.3em;
   cursor: pointer;
   transition: background-color 0.2s;
 }
@@ -351,59 +335,59 @@ onBeforeUnmount(() => {
   background-color: #7c3aed;
 }
 
-.chart-wrapper {
-  flex: 1;
-  min-height: 0;
-  position: relative;
-}
-
+/* 提示气泡 */
 .tooltip {
   position: absolute;
   top: 100%;
   left: 0;
   z-index: 10;
   background: rgba(0, 0, 0, 0.8);
-  color: white;
-  padding: 12px 16px;
-  border-radius: 6px;
-  max-width: 350px;
-  font-size: 14px;
+  color: #fff;
+  padding: 0.75em 1em;
+  border-radius: 0.375em;
+  max-width: 21.875em;
+  font-size: 0.9em;
   line-height: 1.5;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 0.25em 0.75em rgba(0, 0, 0, 0.15);
 }
 
+/* SDNN 信息块 */
 .sdnn-info-box {
+  position: absolute;        /* 相对于 root-container 绝对定位 */
+  bottom: 3vh;              /* 距离 root-container 底部的距离 */
+  z-index: 100;
+  box-shadow: 0 0.5em 1.5em rgba(0, 0, 0, 0.15);
   background: #f8f9fa;
-  padding: 16px;
-  border-radius: 8px;
-  margin-top: 20px;
-  border-left: 4px solid #8B5CF6;
+  padding: 1em;
+  border-radius: 0.5em;
+  margin-top: 1.25em;
+  border-left: 0.25em solid #8B5CF6;
 }
 
 .sdnn-info-box h3 {
-  font-size: 16px;
+  font-size: 1em;
   margin-top: 0;
   color: #4b5563;
 }
 
 .sdnn-info-box h4 {
-  font-size: 14px;
-  margin-bottom: 8px;
+  font-size: 0.9em;
+  margin-bottom: 0.5em;
   color: #4b5563;
 }
 
 .sdnn-info-box p {
-  margin: 8px 0;
+  margin: 0.5em 0;
   color: #6b7280;
 }
 
 .sdnn-info-box ul {
-  padding-left: 20px;
-  margin: 8px 0;
+  padding-left: 1.25em;
+  margin: 0.5em 0;
 }
 
 .sdnn-info-box li {
-  margin-bottom: 6px;
+  margin-bottom: 0.375em;
   color: #6b7280;
 }
 </style>

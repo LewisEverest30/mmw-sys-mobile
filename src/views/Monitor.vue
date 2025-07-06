@@ -1,6 +1,10 @@
 <template>
   <div class="monitor-container">
     <div class="header">
+      <div class="mode-switch">
+        <button :class="{active: mode==='grid'}" @click="mode='grid'">2x2模式</button>
+        <button :class="{active: mode==='main-slave'}" @click="mode='main-slave'">1+3模式</button>
+      </div>
       <h1 class="title">毫米波无感健康检测</h1>
       <div class="time-display">
         <div class="date">{{ currentDate }}</div>
@@ -8,40 +12,39 @@
         <span v-if="!isInBed" class="bed-status">已离开</span>
       </div>
     </div>
-    <div class="grid-container">
-      <!-- 心率监测 -->
-      <div class="grid-item">
-        <HeartrateMonitor :userId="userId" />
+    <div v-if="mode==='grid'" class="grid-container">
+      <div class="grid-item"><HeartbeatMonitor :userId="userId" /></div>
+      <div class="grid-item"><HeartrateMonitor :userId="userId" /></div>
+      <div class="grid-item"><BreathMonitor :userId="userId" /></div>
+      <div class="grid-item"><HRVMonitor :userId="userId" /></div>
+    </div>
+    <div v-else class="main-slave-container">
+      <div class="main-panel">
+        <component :is="getComponent(mainType)" :userId="userId" />
       </div>
-      
-      <!-- 心电监测 -->
-      <div class="grid-item">
-        <HeartMonitor :userId="userId" />
-      </div>
-      
-      <!-- 呼吸监测 -->
-      <div class="grid-item">
-        <BreathMonitor :userId="userId" />
-      </div>
-      
-      <!-- hrv监测 -->
-      <div class="grid-item">
-        <HRVMonitor :userId="userId" />
+      <div class="slave-panel">
+        <div
+          v-for="item in slaveList"
+          :key="item.type"
+          class="slave-item"
+          @click="switchMain(item.type)"
+        >
+          <component :is="item.component" :userId="userId" />
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import { useRoute } from 'vue-router'
+import HeartbeatMonitor from '@/components/HeartbeatMonitor.vue'
 import HeartrateMonitor from '@/components/HeartrateMonitor.vue'
-import HeartMonitor from '@/components/HeartMonitor.vue'
 import BreathMonitor from '@/components/BreathMonitor.vue'
 import HRVMonitor from '@/components/HRVMonitor.vue'
 import { getBWaveform } from '@/api/breath'
 
-// 定义响应式状态
 const userId = ref<string | null>(null)
 const currentDate = ref('')
 const currentTime = ref('')
@@ -49,11 +52,31 @@ const isInBed = ref(true)
 let timer: number | null = null
 let bedStatusTimer: number | null = null
 
-// 获取路由参数
+const mode = ref<'grid' | 'main-slave'>('grid')
+const mainType = ref<'HeartrateMonitor' | 'HeartbeatMonitor' | 'BreathMonitor' | 'HRVMonitor'>('HeartbeatMonitor')
+
+const monitorList = [
+  { type: 'HeartrateMonitor', label: '心电监测', component: HeartrateMonitor },
+  { type: 'HeartbeatMonitor', label: '心率监测', component: HeartbeatMonitor },
+  { type: 'BreathMonitor', label: '呼吸监测', component: BreathMonitor },
+  { type: 'HRVMonitor', label: 'HRV监测', component: HRVMonitor }
+]
+
+const getComponent = (type: string) => {
+  return monitorList.find(item => item.type === type)?.component
+}
+
+const slaveList = computed(() =>
+  monitorList.filter(item => item.type !== mainType.value)
+)
+
+const switchMain = (type: string) => {
+  mainType.value = type as any
+}
+
 const route = useRoute()
 userId.value = route.params.userId as string
 
-// 更新时间函数
 const updateTime = () => {
   const now = new Date()
   const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
@@ -62,7 +85,6 @@ const updateTime = () => {
   currentTime.value = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`
 }
 
-// 检查床位状态
 const checkBedStatus = async () => {
   try {
     if (userId.value) {
@@ -76,7 +98,6 @@ const checkBedStatus = async () => {
   }
 }
 
-// 开始定时检查床位状态
 const startCheckingBedStatus = () => {
   checkBedStatus()
   bedStatusTimer = window.setInterval(() => {
@@ -84,7 +105,6 @@ const startCheckingBedStatus = () => {
   }, 5000)
 }
 
-// 组件挂载时执行
 onMounted(() => {
   updateTime()
   timer = window.setInterval(() => {
@@ -93,7 +113,6 @@ onMounted(() => {
   startCheckingBedStatus()
 })
 
-// 组件卸载前清理定时器
 onBeforeUnmount(() => {
   if (timer) {
     clearInterval(timer)
@@ -110,10 +129,10 @@ onBeforeUnmount(() => {
 .monitor-container {
   width: 100%;
   height: 100vh;
-  padding: 20px;
+  padding: 2%;
   box-sizing: border-box;
   background-color: #f0f4f8;
-  overflow: hidden;
+  /* overflow: hidden; */
   display: flex;
   flex-direction: column;
 }
@@ -139,6 +158,25 @@ onBeforeUnmount(() => {
   font-weight: bold;
   flex: 1;
   text-align: center;
+}
+
+.mode-switch {
+  display: flex;
+  gap: 8px;
+  margin-right: 16px;
+}
+.mode-switch button {
+  padding: 4px 12px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  background: #f8f9fa;
+  cursor: pointer;
+  font-size: 14px;
+}
+.mode-switch button.active {
+  background: #409eff;
+  color: #fff;
+  border-color: #409eff;
 }
 
 .time-display {
@@ -170,14 +208,6 @@ onBeforeUnmount(() => {
   background-color: rgba(255, 77, 79, 0.1);
 }
 
-/* 为内容区域添加滚动 */
-.chart-container {
-  flex: 1;
-  min-height: 300px;
-  overflow-y: auto;
-  padding: 15px;
-}
-
 .grid-container {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -200,6 +230,59 @@ onBeforeUnmount(() => {
   flex-direction: column;
 }
 
+.main-slave-container {
+  display: flex;
+  height: calc(100vh - 120px);
+  width: calc(100% - 40px);
+  max-width: 2000px;
+  margin: 0 auto;
+  gap: 20px;
+}
+.main-panel {
+  flex: 2;
+  min-width: 0;
+  min-height: 0;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  font-size: 1.2rem;
+}
+.slave-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+  min-height: 0;
+  font-size: 0.9rem;
+}
+.slave-item {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.slave-label {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  background: rgba(255,255,255,0.7);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #333;
+}
+
 .empty {
   display: flex;
   align-items: center;
@@ -219,16 +302,18 @@ onBeforeUnmount(() => {
   margin-top: 10px;
 }
 
-/* 响应式布局 */
 @media screen and (max-width: 1200px) {
   .grid-container {
     grid-auto-rows: minmax(250px, 1fr);
     gap: 15px;
   }
-  
   .grid-item {
     min-height: 250px;
   }
+  .main-slave-container { flex-direction: column; }
+  .main-panel, .slave-panel { width: 100%; }
+  .slave-panel { flex-direction: row; gap: 10px; }
+  .slave-item { flex: 1; }
 }
 
 @media screen and (max-width: 768px) {
@@ -237,24 +322,38 @@ onBeforeUnmount(() => {
     height: auto;
     min-height: 100vh;
   }
-  
   .grid-item {
     min-height: 400px;
     height: auto;
   }
-  
   .header {
     flex-direction: column;
     padding: 10px;
   }
-
   .title {
     margin-bottom: 10px;
   }
-
   .time-display {
     width: 100%;
     justify-content: center;
+  }
+  .main-slave-container {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+  }
+  .main-panel, .slave-panel {
+    width: 100%;
+    min-height: 0;
+  }
+  .slave-panel {
+    flex-direction: row;
+    gap: 10px;
+  }
+  .slave-item {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
   }
 }
 
@@ -262,10 +361,13 @@ onBeforeUnmount(() => {
   .monitor-container {
     padding: 10px;
   }
-  
   .grid-container {
     gap: 10px;
     width: calc(100% - 20px);
+  }
+  .main-slave-container {
+    gap: 10px;
+    width: calc(100% - 10px);
   }
 }
 
@@ -273,8 +375,13 @@ onBeforeUnmount(() => {
   .grid-container {
     max-width: 2400px;
   }
-  
   .grid-item {
+    min-height: 500px;
+  }
+  .main-slave-container {
+    max-width: 2400px;
+  }
+  .main-panel, .slave-panel {
     min-height: 500px;
   }
 }

@@ -3,24 +3,19 @@ import httpClient, { type ApiResponse } from '@/utils/request'
 // 定义接口返回数据类型
 interface WaveformData {
   uid: string;
-  timestamp: string;
-  waveform: number[];
+  breath_waveform: number[];
   is_in_bed: boolean;
 }
 
 interface RingData {
   uid: string;
-  timestamp: string;
-  x: number[];
-  y: number[];
+  breath_ring_x: number[];
+  breath_ring_y: number[];
 }
 
 interface WarningData {
   uid: string;
-  warning_id: number;
-  warning_type: string;
-  warning_time: string;
-  warning_content: string;
+  breath_warning_id: number;
 }
 
 /**

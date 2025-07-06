@@ -35,10 +35,9 @@ interface HeartData {
 // HRV数据接口
 interface HrvData {
   uid: string;
-  data: {
-    timestamp: string;
-    hrv_value: number;
-  }[];
+  is_in_bed: boolean;
+  time_stamp: number[];
+  hrv_data: number[];
 }
 
 // 心率统计数据接口

@@ -3,15 +3,16 @@ import httpClient, { type ApiResponse } from '@/utils/request'
 // 定义接口返回数据类型
 interface WaveformData {
   uid: string;
-  timestamp: string;
-  waveform: number[];
+  scg_waveform: number[];
+  isArrhythmia: number;
+  is_in_bed: boolean;
 }
 
 interface HeartRateWaveformData {
   uid: string;
-  timestamp: string;
-  waveform: number[];
-  heart_rate: number;
+  heart_waveform: number[];
+  is_in_bed: boolean;
+  time_stamp: number[];
 }
 
 interface LatestHeartRateData {
