@@ -61,8 +61,6 @@ const updateChart = async () => {
 
     const res = generateHeartRateMockData() // 使用模拟数据函数代替实际API调用
 
-    console.log('获取最新心率数据:', res)
-
     if (!res?.data) return
 
     const heartWaveformTmp = res.data.heart_waveform
@@ -127,6 +125,13 @@ const getChartOption = (displayData: (number | null)[], xAxisData: string[]) => 
       backgroundColor: 'rgba(0,0,0,0.7)',
       textStyle: { color: '#fff' },
       borderColor: 'rgba(255,255,255,0.2)'
+    },
+    grid: {
+      left: '5%',     // 左边距
+      right: '5%',    // 右边距
+      top: '20%',     // 上边距
+      bottom: '5%',  // 下边距
+      containLabel: true  // 自动调整以包含标签
     },
     xAxis: {
       show: true,
@@ -337,5 +342,78 @@ onBeforeUnmount(() => {
     ;
   transition: all 0.3s ease;
   font-size: 1em;
+}
+
+/* 响应式设计 */
+@media (max-width: 1200px) {
+  .chart-header {
+    margin: 0.5% 1%;
+  }
+  
+  .section-title {
+    font-size: 1.2em;
+  }
+  
+  .status-text {
+    font-size: 0.8em;
+    padding: 0.8%;
+  }
+}
+
+@media (max-width: 768px) {
+  .monitor-container {
+    padding: 0.3em;
+  }
+  .chart-header {
+    margin: 0.5% 0;
+  }
+  .section-title {
+    font-size: 1.1em;
+  }
+  .status-text {
+    font-size: 0.8em;
+    padding: 0.8% 1%;
+    border-radius: 0.25em;
+  }
+  .status-text-label {
+    font-size: 0.8em;
+  }
+  .chart-container {
+    height: 80vh;
+    border-radius: 0.8em;
+  }
+  .chart-note {
+    font-size: 0.6em;
+    padding: 0.2em;
+  }
+  .heart-status-icon {
+    width: 0.4em;
+    height: 0.4em;
+  }
+  .heart-status-text {
+    font-size: 0.6em;
+    padding: 0.2em 0.4em;
+    margin-left: 0.2em;
+  }
+}
+
+/* 横屏专用样式 */
+@media screen and (orientation: landscape) and (max-height: 600px) {
+  .chart-header {
+    margin: 0.5% 1%;
+  }
+  
+  .section-title {
+    font-size: 1.1em;
+  }
+  
+  .chart-container {
+    height: 85vh;
+  }
+  
+  .chart-note {
+    margin-top: 0.2em;
+    padding: 0.2em;
+  }
 }
 </style>

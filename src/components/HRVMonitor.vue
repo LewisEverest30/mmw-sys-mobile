@@ -4,8 +4,14 @@
       <div class="chart-header">
         <h2 class="section-title">
           心率变异性 (HRV)
-          <div class="info-icon" @mouseover="showHRVInfo = true" @mouseleave="showHRVInfo = false">
-            <span style="font-size: 0.8em;">i</span>
+          <div class="info-icon-container" 
+               @mouseover="showHRVInfo = true" 
+               @mouseleave="showHRVInfo = false">
+            <div class="info-icon"
+                 @touchstart="toggleHRVInfo"
+                 @click="toggleHRVInfo">
+              <span style="font-size: 0.8em;">i</span>
+            </div>
           </div>
         </h2>
         <div class="status-text">
@@ -13,7 +19,12 @@
         </div>
       </div>
       <div ref="chartRef" class="chart-container"></div>
-      <div v-if="showHRVInfo" class="sdnn-info-box">
+      <!-- 提示框在容器内悬浮显示，不挤压图表 -->
+      <div v-if="showHRVInfo" class="sdnn-info-box" 
+           @click.stop
+           @mouseover="showHRVInfo = true"
+           @mouseleave="showHRVInfo = false">
+        <div class="close-btn" @click="showHRVInfo = false">×</div>
         <h2>HRV是指心跳间隔（RR间期）的微小波动</h2>
         <h3>SDNN（标准差）：</h3>
         <p>单位为毫秒（ms），表示RR间期(心跳间隔)的标准差。</p>
@@ -54,6 +65,11 @@ const isInBed = ref<boolean | null>(null)
 
 let chart: ECharts | null = null
 let resizeObserver: ResizeObserver | null = null
+
+// 切换HRV信息显示状态
+const toggleHRVInfo = () => {
+  showHRVInfo.value = !showHRVInfo.value
+}
 
 // 使用模拟数据的函数
 const useMockData = () => {
@@ -117,6 +133,13 @@ const getChartOption = (displayData: (number | null)[], xAxisData: string[]) => 
       backgroundColor: 'rgba(0,0,0,0.7)',
       textStyle: { color: '#fff' },
       borderColor: 'rgba(255,255,255,0.2)'
+    },
+    grid: {
+      left: '5%',     // 左边距
+      right: '5%',    // 右边距
+      top: '20%',     // 上边距
+      bottom: '5%',  // 下边距
+      containLabel: true  // 自动调整以包含标签
     },
     xAxis: {
       type: 'category',
@@ -263,6 +286,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   justify-content: space-between;
   align-items: center;
+  position: relative; /* 添加相对定位，作为绝对定位的参考 */
 }
 
 /* 标题区 */
@@ -315,6 +339,14 @@ onBeforeUnmount(() => {
   font-size: 1em;
 }
 
+/* 小提示图标容器 */
+.info-icon-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.3em;
+}
+
 /* 小提示图标 */
 .info-icon {
   display: inline-flex;
@@ -326,7 +358,6 @@ onBeforeUnmount(() => {
   background-color: #8B5CF6;
   color: #fff;
   font-size: 0.8em;
-  margin-left: 0.3em;
   cursor: pointer;
   transition: background-color 0.2s;
 }
@@ -353,41 +384,266 @@ onBeforeUnmount(() => {
 
 /* SDNN 信息块 */
 .sdnn-info-box {
-  position: absolute;        /* 相对于 root-container 绝对定位 */
-  bottom: 3vh;              /* 距离 root-container 底部的距离 */
+  position: absolute;        /* 绝对定位，相对于 monitor-container */
+  top: 50%;                 /* 垂直居中 */
+  left: 50%;                /* 水平居中 */
+  transform: translate(-50%, -50%); /* 精确居中 */
   z-index: 100;
-  box-shadow: 0 0.5em 1.5em rgba(0, 0, 0, 0.15);
+  box-shadow: 0 0.5em 1.5em rgba(0, 0, 0, 0.25);
   background: #f8f9fa;
   padding: 1em;
   border-radius: 0.5em;
-  margin-top: 1.25em;
   border-left: 0.25em solid #8B5CF6;
+  max-width: 90%;           /* 相对于容器的宽度 */
+  max-height: 80%;          /* 相对于容器的高度 */
+  overflow-y: auto;         /* 内容过多时滚动 */
+}
+
+/* 关闭按钮 */
+.close-btn {
+  position: absolute;
+  top: 0.5em;
+  right: 0.5em;
+  width: 1.5em;
+  height: 1.5em;
+  border-radius: 50%;
+  background: #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.2em;
+  color: #6b7280;
+  transition: background-color 0.2s;
+}
+
+.close-btn:hover {
+  background: #d1d5db;
+  color: #374151;
+}
+
+.sdnn-info-box h2 {
+  font-size: 1.1em;
+  margin: 0 0 0.5em 0;
+  color: #2c3e50;
 }
 
 .sdnn-info-box h3 {
   font-size: 1em;
-  margin-top: 0;
+  margin: 0.5em 0 0.3em 0;
   color: #4b5563;
 }
 
 .sdnn-info-box h4 {
   font-size: 0.9em;
-  margin-bottom: 0.5em;
+  margin: 0.3em 0 0.2em 0;
   color: #4b5563;
 }
 
 .sdnn-info-box p {
-  margin: 0.5em 0;
+  font-size: 0.85em;
+  margin: 0.2em 0 0.5em 0;
   color: #6b7280;
+  line-height: 1.4;
 }
 
 .sdnn-info-box ul {
   padding-left: 1.25em;
-  margin: 0.5em 0;
+  margin: 0.3em 0;
 }
 
 .sdnn-info-box li {
-  margin-bottom: 0.375em;
+  font-size: 0.8em;
+  margin-bottom: 0.25em;
   color: #6b7280;
+  line-height: 1.3;
 }
+
+/* 响应式设计 */
+@media (max-width: 1200px) {
+  .chart-header {
+    margin: 0.5% 1%;
+  }
+  
+  .section-title {
+    font-size: 1.2em;
+  }
+  
+  .status-text {
+    font-size: 0.8em;
+    padding: 0.8%;
+  }
+  
+  .sdnn-info-box {
+    padding: 0.8em;
+    max-width: 85%;
+  }
+  
+  .sdnn-info-box h2 {
+    font-size: 1em;
+  }
+  
+  .sdnn-info-box h3 {
+    font-size: 0.9em;
+  }
+  
+  .sdnn-info-box h4 {
+    font-size: 0.8em;
+  }
+  
+  .sdnn-info-box p {
+    font-size: 0.75em;
+  }
+  
+  .sdnn-info-box li {
+    font-size: 0.7em;
+  }
+}
+
+@media (max-width: 768px) {
+  .monitor-container {
+    padding: 0.3em;
+  }
+  .chart-header {
+    margin: 0.5% 0;
+  }
+  .section-title {
+    font-size: 1.1em;
+  }
+  .status-text {
+    font-size: 0.8em;
+    padding: 0.8% 1%;
+    border-radius: 0.25em;
+  }
+  .status-text-label {
+    font-size: 0.8em;
+  }
+  .chart-container {
+    height: 80vh;
+    border-radius: 0.8em;
+  }
+  
+  .sdnn-info-box {
+    padding: 0.6em;
+    max-width: 95%;
+    max-height: 70%;
+  }
+  
+  .sdnn-info-box h2 {
+    font-size: 0.9em;
+    margin-bottom: 0.4em;
+  }
+  
+  .sdnn-info-box h3 {
+    font-size: 0.8em;
+    margin: 0.4em 0 0.2em 0;
+  }
+  
+  .sdnn-info-box h4 {
+    font-size: 0.75em;
+    margin: 0.2em 0 0.1em 0;
+  }
+  
+  .sdnn-info-box p {
+    font-size: 0.7em;
+    margin: 0.1em 0 0.3em 0;
+  }
+  
+  .sdnn-info-box ul {
+    margin: 0.2em 0;
+    padding-left: 1em;
+  }
+  
+  .sdnn-info-box li {
+    font-size: 0.65em;
+    margin-bottom: 0.2em;
+    line-height: 1.2;
+  }
+  
+  .close-btn {
+    width: 1.2em;
+    height: 1.2em;
+    font-size: 1em;
+  }
+  
+  .chart-note {
+    font-size: 0.6em;
+    padding: 0.2em;
+  }
+  .heart-status-icon {
+    width: 0.4em;
+    height: 0.4em;
+  }
+  .heart-status-text {
+    font-size: 0.6em;
+    padding: 0.2em 0.4em;
+    margin-left: 0.2em;
+  }
+}
+
+/* 横屏专用样式 */
+@media screen and (orientation: landscape) and (max-height: 600px) {
+  .chart-header {
+    margin: 0.5% 1%;
+  }
+  
+  .section-title {
+    font-size: 1.1em;
+  }
+  
+  .chart-container {
+    height: 85vh;
+  }
+  
+  .chart-note {
+    margin-top: 0.2em;
+    padding: 0.2em;
+  }
+  
+  .sdnn-info-box {
+    padding: 0.5em;
+    max-width: 95%;
+    max-height: 60%;
+  }
+  
+  .sdnn-info-box h2 {
+    font-size: 0.8em;
+    margin-bottom: 0.3em;
+  }
+  
+  .sdnn-info-box h3 {
+    font-size: 0.7em;
+    margin: 0.3em 0 0.1em 0;
+  }
+  
+  .sdnn-info-box h4 {
+    font-size: 0.65em;
+    margin: 0.1em 0;
+  }
+  
+  .sdnn-info-box p {
+    font-size: 0.6em;
+    margin: 0.1em 0 0.2em 0;
+  }
+  
+  .sdnn-info-box ul {
+    margin: 0.1em 0;
+    padding-left: 0.8em;
+  }
+  
+  .sdnn-info-box li {
+    font-size: 0.55em;
+    margin-bottom: 0.1em;
+    line-height: 1.1;
+  }
+  
+  .close-btn {
+    width: 1em;
+    height: 1em;
+    font-size: 0.9em;
+    top: 0.3em;
+    right: 0.3em;
+  }
+}
+
 </style>

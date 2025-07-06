@@ -292,8 +292,7 @@ onBeforeUnmount(() => {
 /* 图表区域 */
 .chart-container {
   width: 100%;
-  /* height: calc(100% - 1vh); */
-  height: 100vh;
+  height: 98vh;
   border-radius: 1.2em;
   overflow: hidden;
   box-shadow: 
@@ -302,6 +301,7 @@ onBeforeUnmount(() => {
     ;
   transition: all 0.3s ease;
   font-size: 1em;
+  padding-bottom: 1vh;
 }
 
 /* 图表下方提示条 */
@@ -350,5 +350,87 @@ onBeforeUnmount(() => {
   padding: 0.3125em 0.625em;
   margin-left: 0.3125em;
   text-align: center;
+}
+
+/* 响应式设计 */
+@media (max-width: 1200px) {
+  .chart-header {
+    margin: 0.5% 1%;
+  }
+  
+  .section-title {
+    font-size: 1.2em;
+  }
+  
+  .status-text {
+    font-size: 0.8em;
+    padding: 0.8%;
+  }
+}
+
+@media (max-width: 768px) {
+  .monitor-container {
+    padding: 0.3em;
+  }
+  .chart-header {
+    margin: 0.5% 0;
+  }
+  .section-title {
+    font-size: 1.1em;
+  }
+  .status-text {
+    font-size: 0.8em;
+    padding: 0.8% 1%;
+    border-radius: 0.25em;
+  }
+  .status-text-label {
+    font-size: 0.8em;
+  }
+  .chart-container {
+    height: 80vh;
+    border-radius: 0.8em;
+  }
+  .chart-note {
+    font-size: 0.6em;
+    padding: 0.2em;
+  }
+  .heart-status-icon {
+    width: 0.4em;
+    height: 0.4em;
+  }
+  .heart-status-text {
+    font-size: 0.6em;
+    padding: 0.2em 0.4em;
+    margin-left: 0.2em;
+  }
+}
+
+/* 横屏专用样式 */
+@media screen and (orientation: landscape) and (max-height: 600px) {
+  .chart-header {
+    margin: 0.5% 1%;
+  }
+  
+  .section-title {
+    font-size: 1.1em;
+  }
+  
+  .chart-container {
+    height: 85vh;
+  }
+  
+  .chart-note {
+    margin: 0.1em 0em;
+    padding: 0em;
+  }
+  .heart-status-icon {
+    width: 0.4em;
+    height: 0.4em;
+  }
+  .heart-status-text {
+    font-size: 0.4em;
+    padding: 0.1em 0.4em;
+    margin-left: 0.2em;
+  }
 }
 </style>

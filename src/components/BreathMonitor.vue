@@ -10,20 +10,12 @@
           <div class="status-item" v-if="isInBed && breathWarningId === 21">
               <img src="/breath_imgs/breath_hold.svg" alt="呼吸暂停" class="status-icon status-active" />
               <h3 class="status-text-active">呼吸暂停</h3>
-              <div class="info-icon" @mouseover="showApneaInfo = true" @mouseleave="showApneaInfo = false">i</div>
-              <div v-if="showApneaInfo" class="tooltip">
-                夜间呼吸暂停是一种睡眠时呼吸暂时停止的现象，可能导致缺氧和睡眠质量下降，需及时关注和治疗。
-              </div>
           </div>
 
           <!-- 通气阻塞状态 -->
           <div class="status-item" v-if="isInBed && breathWarningId === 22">
               <img src="/breath_imgs/lung.svg" alt="通气阻塞" class="status-icon status-active" />
               <h3 class="status-text-active">通气阻塞</h3>
-              <div class="info-icon" @mouseover="showObstructionInfo = true" @mouseleave="showObstructionInfo = false">i</div>
-              <div v-if="showObstructionInfo" class="tooltip">
-                夜间通气阻塞是指睡眠时上呼吸道部分或完全堵塞，导致呼吸暂停或气流受限，影响正常呼吸和睡眠质量。
-              </div>
           </div>
 
           <!-- 正常状态 -->
@@ -46,28 +38,48 @@
             <div class="sub-chart-title-container">
               <h3 class="sub-chart-title">呼吸波形</h3>
             </div>
-            <div ref="waveformChartRef" class="chart-content" />
+            <div ref="waveformChartRef" class="sub-chart-container" />
           </div>
         </div>
 
         <div class="ring-container">
           <div class="chart-container">
             <div class="sub-chart-title-container">
-              <h3 class="sub-chart-title">呼吸流速-容量环</h3>
-              <div class="info-icon" @mouseover="showRingInfo = true" @mouseleave="showRingInfo = false">i</div>
-              <div v-if="showRingInfo" class="tooltip">
+              <h3 class="sub-chart-title">流速-容量环</h3>
+              <div class="info-icon-ring" @mouseover="showRingInfo = true" @mouseleave="showRingInfo = false">i</div>
+              <div v-if="showRingInfo" class="tooltip-ring">
                 自主呼吸的流速容量环是测量呼吸功能的图，显示气流速度和容量关系，包括呼气和吸气两部分。
               </div>
             </div>
-            <div ref="ringChartRef" class="chart-content" />
+            <div ref="ringChartRef" class="sub-chart-container" />
           </div>
         </div>
       </div>
 
       <!-- 底部提示 -->
       <div class="chart-note">
-        <span class="breath-status-icon" :class="breathStatusClass"></span>
-        <span class="breath-status-text">{{ breathStatusMessage }}</span>
+        <div class="status-info">
+          <span class="breath-status-icon" :class="breathStatusClass"></span>
+          <span class="breath-status-text">{{ breathStatusMessage }}</span>
+        </div>
+        
+        <div class="info-icons">
+          <!-- 呼吸暂停提示 -->
+          <div v-if="isInBed && breathWarningId === 21" class="info-section">
+            <div class="info-icon" @mouseover="showApneaInfo = true" @mouseleave="showApneaInfo = false">i</div>
+            <div v-if="showApneaInfo" class="tooltip">
+              夜间呼吸暂停是一种睡眠时呼吸暂时停止的现象，可能导致缺氧和睡眠质量下降，需及时关注和治疗。
+            </div>
+          </div>
+          
+          <!-- 通气阻塞提示 -->
+          <div v-if="isInBed && breathWarningId === 22" class="info-section">
+            <div class="info-icon" @mouseover="showObstructionInfo = true" @mouseleave="showObstructionInfo = false">i</div>
+            <div v-if="showObstructionInfo" class="tooltip">
+              夜间通气阻塞是指睡眠时上呼吸道部分或完全堵塞，导致呼吸暂停或气流受限，影响正常呼吸和睡眠质量。
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -133,6 +145,11 @@ let resizeObserver: ResizeObserver | null = null
 const getWaveformChartOption = (displayData: number[], xAxisData: string[]) => {
   const fontSize = calculateEchartsFontSize(waveformChartRef.value, 0.8)
   const lineWidth = calculateEchartsLineWidth(waveformChartRef.value, 1)
+  const containerWidth = waveformChartRef.value ? waveformChartRef.value.clientWidth : 0
+  const containerHeight = waveformChartRef.value ? waveformChartRef.value.clientHeight : 0
+  const samplingRate = 100
+  const xTickInterval = containerWidth < 250 ? samplingRate * 2 : samplingRate
+  const ySplitNumber = containerHeight < 250 ? 3 : 5
 
   return {
     tooltip: {
@@ -148,20 +165,22 @@ const getWaveformChartOption = (displayData: number[], xAxisData: string[]) => {
       borderColor: 'rgba(255,255,255,0.2)'
     },
     grid: {
-      left: '5%',
-      right: '5%',
-      bottom: '10%',
-      top: '10%',
+      left: '3%',
+      right: '10%',
+      bottom: '15%',
+      top: '20%',
       containLabel: true
     },
     xAxis: {
       type: 'category',
+      min: 0,
+      max: 1000,
       name: '时间(s)',
       nameLocation: 'center',
-      nameGap: 30,
+      nameGap: 25,
       nameTextStyle: {
-        color: '#333',
-        fontSize: fontSize * 0.9
+        color: '#666',
+        fontSize: fontSize * 0.8
       },
       data: xAxisData,
       splitLine: {
@@ -170,12 +189,12 @@ const getWaveformChartOption = (displayData: number[], xAxisData: string[]) => {
       axisLabel: {
         show: true,
         formatter: (value: string, index: number) => {
-          if (index % 100 === 0) { // samplingRate
-            return `${(index / 100).toFixed(0)}s`
+          if (index % xTickInterval === 0) {
+            return `${(index / samplingRate).toFixed(0)}`
           }
           return ''
         },
-        interval: 99, // samplingRate - 1
+        interval: xTickInterval - 1,
         textStyle: {
           color: '#666',
           fontSize: fontSize
@@ -183,7 +202,7 @@ const getWaveformChartOption = (displayData: number[], xAxisData: string[]) => {
       },
       axisTick: {
         show: true,
-        interval: (index: number) => index % 100 === 0, // samplingRate
+        interval: (index: number) => index % xTickInterval === 0,
         alignWithLabel: true,
         length: lineWidth * 2
       },
@@ -193,19 +212,15 @@ const getWaveformChartOption = (displayData: number[], xAxisData: string[]) => {
           color: '#666',
           width: lineWidth * 0.5
         }
-      }
+      },
     },
     yAxis: {
       type: 'value',
       name: '归一化幅度',
-      nameLocation: 'middle',
-      nameGap: 50,
-      nameRotate: 90,
+      nameGap: 8,
       nameTextStyle: {
-        color: '#333',
-        fontSize: fontSize * 0.9,
-        fontWeight: 'normal',
-        align: 'center'
+        color: '#666',
+        fontSize: fontSize * 0.9
       },
       show: true,
       splitLine: {
@@ -231,8 +246,9 @@ const getWaveformChartOption = (displayData: number[], xAxisData: string[]) => {
         textStyle: {
           color: '#666',
           fontSize: fontSize
-        }
+        },
       },
+      splitNumber: ySplitNumber,
       ...(isInBed.value && breathWarningId.value === 21 ? {
         min: -1,
         max: 1
@@ -267,6 +283,14 @@ const getWaveformChartOption = (displayData: number[], xAxisData: string[]) => {
 const getRingChartOption = (seriesData: [number, number][], shouldShowData: boolean) => {
   const fontSize = calculateEchartsFontSize(ringChartRef.value, 0.8)
   const lineWidth = calculateEchartsLineWidth(ringChartRef.value, 1)
+  const containerWidth = ringChartRef.value ? ringChartRef.value.clientWidth : 0
+  const containerHeight = ringChartRef.value ? ringChartRef.value.clientHeight : 0
+  const samplingRate = 100
+  const xTickInterval = containerWidth < 250 ? samplingRate * 2 : samplingRate
+  const yTickInterval = containerHeight < 250 ? 2 : 1
+  const xSplitNumber = containerWidth < 250 ? 4 : 5
+  const ySplitNumber = containerHeight < 250 ? 3 : 5
+  console.log("fontSize:", fontSize, "lineWidth:", lineWidth, "xTickInterval:", xTickInterval, "yTickInterval:", yTickInterval, "containerWidth:", containerWidth, "containerHeight:", containerHeight)
 
   return {
     tooltip: {
@@ -282,20 +306,22 @@ const getRingChartOption = (seriesData: [number, number][], shouldShowData: bool
       borderColor: 'rgba(255,255,255,0.2)'
     },
     grid: {
-      left: '5%',
+      left: '3%',
       right: '5%',
-      bottom: '10%',
-      top: '10%',
+      bottom: '15%',
+      top: '20%',
       containLabel: true
     },
     xAxis: {
       type: 'value',
+      min: 0,
+      max: 1.01,
       name: '流量',
       nameLocation: 'center',
-      nameGap: 30,
+      nameGap: 25,
       nameTextStyle: {
         color: '#666',
-        fontSize: fontSize * 0.9
+        fontSize: fontSize * 0.8
       },
       splitLine: {
         show: true,
@@ -320,21 +346,19 @@ const getRingChartOption = (seriesData: [number, number][], shouldShowData: bool
         textStyle: {
           color: '#666',
           fontSize: fontSize
-        }
-      }
+        },
+      },
+      splitNumber: xSplitNumber,
     },
     yAxis: {
       type: 'value',
       name: '流速',
-      nameLocation: 'middle',
-      nameGap: 50,
-      nameRotate: 90,
+      nameGap: 8,
       nameTextStyle: {
         color: '#666',
         fontSize: fontSize * 0.9,
-        fontWeight: 'normal',
-        align: 'center'
       },
+      show: true,
       splitLine: {
         show: true,
         lineStyle: {
@@ -358,8 +382,9 @@ const getRingChartOption = (seriesData: [number, number][], shouldShowData: bool
         textStyle: {
           color: '#666',
           fontSize: fontSize
-        }
-      }
+        },
+      },
+      splitNumber: ySplitNumber,
     },
     series: shouldShowData ? [{
       name: '呼吸环',
@@ -535,7 +560,6 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-/* 根容器：居中 + 灰底 */
 .root-container {
   width: 100%;
   height: 100%;
@@ -546,7 +570,6 @@ onBeforeUnmount(() => {
   font-family: 'Arial', sans-serif;
 }
 
-/* 白色内容卡片 */
 .monitor-container {
   width: 100%;
   height: 100%;
@@ -557,10 +580,8 @@ onBeforeUnmount(() => {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
 }
 
-/* 标题区 */
 .chart-header {
   width: 100%;
   display: flex;
@@ -569,7 +590,6 @@ onBeforeUnmount(() => {
   margin: 1% 2%;
   flex-shrink: 0;
 }
-
 .section-title {
   font-size: 1.5em;
   color: #2c3e50;
@@ -578,8 +598,6 @@ onBeforeUnmount(() => {
   margin-top: 1%;
   padding-left: 1%;
 }
-
-/* 状态区域样式 */
 .status-section {
   font-size: 1em;
   font-weight: bold;
@@ -589,69 +607,52 @@ onBeforeUnmount(() => {
   margin-right: 1.5vw;
   border-radius: 0.3125em;
   border: #a3a3a3 0.0625em;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 0.125em 0.25em rgba(0, 0, 0, 0.15);
   max-width: fit-content;
   white-space: nowrap;
 }
-
 .status-item {
   display: flex;
   justify-content: center;
   align-items: center;
   position: relative;
-  /* 确保内容紧凑排列 */
   gap: 0.5em;
   flex-shrink: 0;
 }
-
-/* 状态文字样式 */
-.status-text-active {
-  color: #EF4444;
-  font-weight: bold;
-  font-size: 16px;
-  margin: 0;
-}
-
-.status-text-normal {
-  color: #10B981;
-  font-weight: bold;
-  font-size: 16px;
-  margin: 0;
-}
-
-.status-text-out-of-bed {
-  color: #F59E0B;
-  font-weight: bold;
-  font-size: 16px;
-  margin: 0;
-}
-
-/* 状态图标样式 */
 .status-icon {
-  width: 28px;
-  height: 28px;
+  width: 1.75em;
+  height: 1.75em;
   transition: transform 0.3s ease;
-  margin-right: 0.5em; /* 减少右边距 */
-  flex-shrink: 0; /* 防止图标被压缩 */
+  margin-right: 0.5em;
+  flex-shrink: 0;
 }
-
 .status-icon.status-active {
   filter: brightness(0) saturate(100%) invert(18%) sepia(98%) saturate(7040%) hue-rotate(358deg) brightness(100%) contrast(106%);
   animation: pulse 2s infinite;
 }
-
-.status-icon.status-normal {
-  filter: brightness(0) saturate(100%) invert(48%) sepia(87%) saturate(3151%) hue-rotate(130deg) brightness(93%) contrast(80%);
+.status-text-active {
+  color: #EF4444;
+  font-weight: bold;
+  font-size: 1em;
+  margin: 0;
 }
-
-.status-icon.status-out-of-bed {
-  filter: brightness(0) saturate(100%) invert(60%) sepia(98%) saturate(1352%) hue-rotate(21deg) brightness(96%) contrast(101%);
+.status-text-normal {
+  color: #10B981;
+  font-weight: bold;
+  font-size: 1em;
+  margin: 0;
+}
+.status-text-out-of-bed {
+  color: #F59E0B;
+  font-weight: bold;
+  font-size: 1em;
+  margin: 0;
 }
 
 /* 图表区域 */
 .charts-section {
   display: flex;
-  gap: 1em;
+  gap: 0.8em;
   flex: 1;
   min-height: 0;
   overflow: hidden;
@@ -659,55 +660,24 @@ onBeforeUnmount(() => {
   padding-top: 1vh;
   font-size: 1em;
 }
-
 .waveform-container {
   flex: 2;
   display: flex;
   flex-direction: column;
   min-height: 0;
 }
-
 .ring-container {
   flex: 1;
   display: flex;
   flex-direction: column;
   position: relative;
   min-height: 0;
+  padding-right: 0.3em;
 }
-
-.chart-title {
-  font-size: 1.1em;
-  color: #2c3e50;
-  letter-spacing: 0.03em;
-  margin: 0;
-  padding-left: 1%;
-  flex-shrink: 0;
-}
-
-.chart-title-container {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  position: relative;
-  margin: 0.5em 0 0.5em 0.5em;
-  flex-shrink: 0;
-}
-
-.sub-chart-title-container {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  position: relative;
-  /* padding: 12px 16px 8px 16px; */
-  flex-shrink: 0;
-  background: rgba(248, 249, 250, 0.8);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-}
-
 .chart-container {
   width: 100%;
   flex: 1;
-  min-height: 200px;
+  min-height: 0;
   border-radius: 1.2em;
   overflow: hidden;
   box-shadow: 
@@ -719,35 +689,30 @@ onBeforeUnmount(() => {
   background: #fff;
   position: relative;
 }
-
-.chart-content {
-  width: 100%;
-  flex: 1;
-  min-height: 0;
+.sub-chart-title-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
   position: relative;
+  flex-shrink: 0;
+  background: rgba(248, 249, 250, 0.8);
+  border-bottom: 0.0625em solid rgba(0, 0, 0, 0.1);
 }
-
 .sub-chart-title {
   font-size: 0.9em;
   color: #2c3e508e;
   letter-spacing: 0.03em;
   margin: 0;
-  padding: 12px 16px 8px 16px;
+  padding: 0.75em 1em 0.5em 1em;
   flex-shrink: 0;
   background: rgba(248, 249, 250, 0.8);
   font-weight: 600;
 }
 
-.chart-content {
-  width: 100%;
-  flex: 1;
-  min-height: 0;
-}
-
-/* 信息图标样式 */
-.info-icon {
-  width: 20px;
-  height: 20px;
+/* 环形图信息图标 */
+.info-icon-ring {
+  width: 1.2em;
+  height: 1.2em;
   border-radius: 50%;
   background: #007bff;
   color: white;
@@ -755,53 +720,53 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   cursor: help;
-  font-size: 12px;
+  font-size: 0.75em;
   font-weight: bold;
   flex-shrink: 0;
   transition: background-color 0.2s ease;
 }
-
-/* 状态区域内的信息图标需要左边距 */
-.status-item .info-icon {
-  margin-left: 0.5em; /* 减少左边距 */
-}
-
-.info-icon:hover {
+.info-icon-ring:hover {
   background-color: #0056b3;
 }
-
-.tooltip {
+.tooltip-ring {
   position: absolute;
   background: rgba(0, 0, 0, 0.9);
   color: white;
-  padding: 8px 12px;
-  border-radius: 6px;
-  font-size: 11px;
+  padding: 0.5em 0.75em;
+  border-radius: 0.375em;
+  font-size: 0.6875em;
   z-index: 1000;
-  max-width: 220px;
+  min-width: 15em;
+  max-width: 20em;
   white-space: normal;
-  left: 50%;
   top: 100%;
-  transform: translateX(-50%);
-  margin-top: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  left: 0;
+  margin-top: 0.5em;
+  box-shadow: 0 0.25em 0.5em rgba(0, 0, 0, 0.2);
   pointer-events: none;
 }
-
-.tooltip::before {
+.tooltip-ring::before {
   content: '';
   position: absolute;
   bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 1em;
   width: 0;
   height: 0;
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
-  border-bottom: 6px solid rgba(0, 0, 0, 0.9);
+  border-left: 0.375em solid transparent;
+  border-right: 0.375em solid transparent;
+  border-bottom: 0.375em solid rgba(0, 0, 0, 0.9);
 }
 
-/* 图表下方提示条 */
+/* 子图表容器 */
+.sub-chart-container {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  font-size: 1em;
+}
+
+/* 图表说明 */
 .chart-note {
   width: 100%;
   margin-top: 0.3125em;
@@ -812,16 +777,23 @@ onBeforeUnmount(() => {
   color: #666;
   display: flex;
   align-items: center;
-  justify-content: left;
+  justify-content: space-between;
+  gap: 0.3125em;
+  flex-shrink: 0;
+}
+
+/* 状态信息 */
+.status-info {
+  display: flex;
+  align-items: center;
   gap: 0.3125em;
 }
 
-/* 小圆点图标 */
+/* 呼吸状态图标 */
 .breath-status-icon {
   width: 0.5em;
   height: 0.5em;
   border-radius: 50%;
-  margin-right: 0.3125em;
 }
 
 .breath-status-normal {
@@ -836,14 +808,78 @@ onBeforeUnmount(() => {
   background-color: #FFA500;
 }
 
-/* 小圆点右边的文字 */
+/* 呼吸状态文字 */
 .breath-status-text {
   font-size: 1em;
   font-weight: bold;
   color: #333;
   padding: 0.3125em 0.625em;
-  margin-left: 0.3125em;
   text-align: center;
+}
+
+/* 信息图标组 */
+.info-icons {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+/* 信息区域 */
+.info-section {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* 信息图标 */
+.info-icon {
+  width: 1.75em;
+  height: 1.75em;
+  border-radius: 50%;
+  background: #007bff;
+  color: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: help;
+  font-size: 0.75em;
+  font-weight: bold;
+  flex-shrink: 0;
+  transition: background-color 0.2s ease;
+}
+
+.info-icon:hover {
+  background-color: #0056b3;
+}
+
+.tooltip {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: 0.5em 0.75em;
+  border-radius: 0.375em;
+  font-size: 1em;
+  z-index: 1000;
+  min-width: 15em;
+  max-width: 20em;
+  white-space: normal;
+  bottom: 100%;
+  right: 0;
+  margin-bottom: 0.5em;
+  box-shadow: 0 0.25em 0.5em rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+}
+
+.tooltip::before {
+  content: '';
+  position: absolute;
+  top: 100%;
+  right: 1em;
+  width: 0;
+  height: 0;
+  border-left: 0.375em solid transparent;
+  border-right: 0.375em solid transparent;
+  border-top: 0.375em solid rgba(0, 0, 0, 0.9);
 }
 
 /* 动画效果 */
@@ -860,75 +896,9 @@ onBeforeUnmount(() => {
 }
 
 /* 响应式设计 */
-@media (max-width: 1200px) {
-  .charts-section {
-    /* flex-direction: column; */
-    gap: 1vw;
-  }
-  
-  .waveform-container,
-  .ring-container {
-    flex: 1;
-    /* min-height: 250px; */
-  }
-}
-
-@media (max-width: 768px) {
+@media (max-width: 75em) { /* 1200px */
   .chart-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5em;
-  }
-  
-  .section-title {
-    font-size: 1.3em;
-  }
-  
-  .status-section {
-    font-size: 0.9em;
-    margin-right: 0;
-  }
-  
-  .status-text-active,
-  .status-text-normal,
-  .status-text-out-of-bed {
-    font-size: 14px;
-  }
-  
-  .status-icon {
-    width: 24px;
-    height: 24px;
-  }
-  
-  .chart-title,
-  .sub-chart-title {
-    font-size: 1em;
-  }
-  
-  .charts-section {
-    flex-direction: column;
-    gap: 0.5em;
-  }
-  
-  .waveform-container,
-  .ring-container {
-    flex: 1;
-    min-height: 220px;
-  }
-  
-  .chart-note {
-    font-size: 0.7em;
-  }
-  
-  .breath-status-text {
-    font-size: 0.9em;
-    padding: 0.25em 0.5em;
-  }
-}
-
-@media (max-width: 480px) {
-  .monitor-container {
-    padding: 0.5em;
+    margin: 0.5% 1%;
   }
   
   .section-title {
@@ -936,24 +906,69 @@ onBeforeUnmount(() => {
   }
   
   .status-section {
-    font-size: 0.8em;
-    padding: 0.5%;
-  }
-  
-  .chart-title,
-  .sub-chart-title {
     font-size: 0.9em;
+    padding: 0.8%;
   }
   
-  .info-icon {
-    width: 16px;
-    height: 16px;
-    font-size: 10px;
+  .charts-section {
+    gap: 1vw;
+    padding-bottom: 0.5vh;
+    padding-top: 0.5vh;
+  }
+}
+
+@media (max-width: 48em) { /* 768px */
+  .monitor-container {
+    padding: 0.3em;
+  }
+  
+  .chart-header {
+    margin: 0.5% 0;
+  }
+  
+  .section-title {
+    font-size: 1.1em;
+  }
+  
+  .status-section {
+    font-size: 0.8em;
+    margin-right: 0;
+    padding: 0.8% 1.2%;
+  }
+  
+  .status-text-active,
+  .status-text-normal,
+  .status-text-out-of-bed {
+    font-size: 0.8em;
+  }
+  
+  .status-icon {
+    width: 15%;
+  }
+  
+  .charts-section {
+    gap: 0.5em;
   }
   
   .waveform-container,
   .ring-container {
-    min-height: 180px;
+    flex: 1;
+    min-height: 5%;
+  }
+  
+  .sub-chart-title {
+    font-size: 0.8em;
+    padding: 0.2em 0.5em;
+  }
+  
+  .chart-note {
+    font-size: 0.7em;
+    padding: 0.4em;
+  }
+  
+  .breath-status-text {
+    font-size: 0.9em;
+    padding: 0.25em 0.5em;
   }
 }
 </style>
