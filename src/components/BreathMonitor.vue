@@ -1,10 +1,20 @@
 <template>
-  <div class="root-container">
-    <div class="monitor-container">
+  <div class="root-container" :class="{ expanded: isExpanded, collapsed: !isExpanded }">
+    <div class="monitor-container" :class="{ expanded: isExpanded, collapsed: !isExpanded }">
       
       <!-- 状态区 -->
       <div class="chart-header">
-        <h3 class="section-title">呼吸监测</h3>
+        <div class="chart-title-group">
+          <div @click="toggle" class="toggle-btn">
+            <svg
+              :class="['triangle-icon', isExpanded ? 'triangle-down' : 'triangle-right']"
+              width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"
+            >
+              <polygon points="5,4 11,4 8,10" :fill="isExpanded ? '#666' : '#666'" style="stroke:none;" />
+            </svg>
+          </div>
+          <h3 class="section-title">呼吸监测</h3>
+        </div>
         <div class="status-section">
           <!-- 呼吸暂停状态 -->
           <div class="status-item" v-if="isInBed && breathWarningId === 21">
@@ -32,7 +42,7 @@
       </div>
 
       <!-- 图表区 -->
-      <div class="charts-section">
+      <div v-if="isExpanded" class="charts-section">
         <div class="waveform-container">
           <div class="chart-container">
             <div class="sub-chart-title-container">
@@ -57,7 +67,7 @@
       </div>
 
       <!-- 底部提示 -->
-      <div class="chart-note">
+      <div v-if="isExpanded" class="chart-note">
         <div class="status-info">
           <span class="breath-status-icon" :class="breathStatusClass"></span>
           <span class="breath-status-text">{{ breathStatusMessage }}</span>
@@ -85,8 +95,8 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
+<script setup lang="ts" name="BreathMonitor">
+import { ref, onMounted, onBeforeUnmount, computed, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import * as echarts from 'echarts'
 import type { ECharts } from 'echarts'
@@ -98,6 +108,7 @@ const route = useRoute()
 const userId = computed(() => route.params.userId as string)
 
 // 状态定义
+const isExpanded = ref(true)
 const waveformChartRef = ref<HTMLElement | null>(null)
 const ringChartRef = ref<HTMLElement | null>(null)
 const waveformData = ref<number[]>([])
@@ -111,6 +122,15 @@ const showObstructionInfo = ref(false)
 const breathWarningId = ref(0)
 const isInBed = ref(true)
 const intervalId = ref<number | null>(null)
+
+let waveformChart: ECharts | null = null
+let ringChart: ECharts | null = null
+let resizeObserver: ResizeObserver | null = null
+
+// 折叠按钮切换
+const toggle = () => {
+  isExpanded.value = !isExpanded.value
+}
 
 // 计算呼吸状态消息
 const breathStatusMessage = computed(() => {
@@ -136,10 +156,6 @@ const breathStatusClass = computed(() => {
   }
   return 'breath-status-normal'
 })
-
-let waveformChart: ECharts | null = null
-let ringChart: ECharts | null = null
-let resizeObserver: ResizeObserver | null = null
 
 // 呼吸波形图表配置函数
 const getWaveformChartOption = (displayData: number[], xAxisData: string[]) => {
@@ -514,26 +530,69 @@ const resizeCharts = () => {
   }
 }
 
-// 生命周期钩子
-onMounted(async () => {
-  if (waveformChartRef.value) {
-    waveformChart = echarts.init(waveformChartRef.value)
-  }
-  
-  if (ringChartRef.value) {
-    ringChart = echarts.init(ringChartRef.value)
-  }
-  
-  await updateCharts()
-  startUpdatingCharts()
-  
-  if (waveformChartRef.value && ringChartRef.value) {
+// 初始化图表
+const initCharts = async () => {
+  if (isExpanded.value) {
+    if (waveformChartRef.value) {
+      if (waveformChart) waveformChart.dispose()
+      waveformChart = echarts.init(waveformChartRef.value)
+    }
+    
+    if (ringChartRef.value) {
+      if (ringChart) ringChart.dispose()
+      ringChart = echarts.init(ringChartRef.value)
+    }
+    
+    // 设置 ResizeObserver
+    if (resizeObserver) {
+      resizeObserver.disconnect()
+    }
     resizeObserver = new ResizeObserver(() => {
       resizeCharts()
     })
-    resizeObserver.observe(waveformChartRef.value)
-    resizeObserver.observe(ringChartRef.value)
+    
+    if (waveformChartRef.value) {
+      resizeObserver.observe(waveformChartRef.value)
+    }
+    if (ringChartRef.value) {
+      resizeObserver.observe(ringChartRef.value)
+    }
   }
+}
+
+// 监听展开状态变化
+watch(isExpanded, async (newVal) => {
+  if (newVal) {
+    // 展开时需要等待 DOM 更新完成
+    await nextTick()
+    await initCharts()
+    // 重新更新图表数据
+    if (waveformData.value.length > 0 || ringData.value.breath_ring_x.length > 0) {
+      await updateCharts()
+    }
+  } else {
+    // 收起时清理图表实例
+    if (waveformChart) {
+      waveformChart.dispose()
+      waveformChart = null
+    }
+    if (ringChart) {
+      ringChart.dispose()
+      ringChart = null
+    }
+    if (resizeObserver) {
+      resizeObserver.disconnect()
+      resizeObserver = null
+    }
+  }
+}, { immediate: true })
+
+// 生命周期钩子
+onMounted(async () => {
+  await updateCharts()
+  startUpdatingCharts()
+  
+  // 图表初始化由 watch 统一处理
 })
 
 onBeforeUnmount(() => {
@@ -551,9 +610,8 @@ onBeforeUnmount(() => {
     ringChart = null
   }
   
-  if (resizeObserver && waveformChartRef.value && ringChartRef.value) {
-    resizeObserver.unobserve(waveformChartRef.value)
-    resizeObserver.unobserve(ringChartRef.value)
+  if (resizeObserver) {
+    resizeObserver.disconnect()
     resizeObserver = null
   }
 })
@@ -562,7 +620,8 @@ onBeforeUnmount(() => {
 <style scoped>
 .root-container {
   width: 100%;
-  height: 100%;
+  /* height: 100vh; */
+  height: auto;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -572,7 +631,8 @@ onBeforeUnmount(() => {
 
 .monitor-container {
   width: 100%;
-  height: 100%;
+  height: auto;
+  /* height: 100%; */
   background: #fff;
   border-radius: 0.625em;
   box-shadow: 0 0.125em 0.25em rgba(0, 0, 0, 0.1);
@@ -580,6 +640,23 @@ onBeforeUnmount(() => {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  gap: 0.625em;
+}
+
+.root-container.expanded {
+  height: 100vh;
+  /* height: auto; */
+}
+.root-container.collapsed {
+  height: auto;
+}
+
+.monitor-container.expanded {
+  height: 100%;
+  /* height: auto; */
+}
+.monitor-container.collapsed {
+  height: auto;     /* 跟随内容 */
 }
 
 .chart-header {
@@ -588,7 +665,56 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   align-items: center;
   margin: 1% 2%;
-  flex-shrink: 0;
+  flex: 2;
+}
+
+.chart-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  flex: 1 1 0%;
+  min-width: 0;
+}
+
+/* 折叠按钮 - 默认隐藏 */
+.toggle-btn {
+  display: none;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 0.25em;
+  cursor: pointer;
+  font-size: 1em;
+  transition: background 0.3s;
+  user-select: none;
+  align-items: center;
+  justify-content: center;
+  height: 2em;
+  width: 2em;
+}
+
+.triangle-icon {
+  display: inline-block;
+  vertical-align: middle;
+  transition: transform 0.2s;
+  width: 1em;
+  height: 1em;
+}
+.triangle-down {
+  transform: rotate(0deg);
+}
+.triangle-right {
+  transform: rotate(-90deg);
+}
+
+.toggle-btn:hover {
+  background-color: #e9ecef;
+  color: #333;
+}
+
+.toggle-btn:active {
+  background-color: #dee2e6;
+  transform: scale(0.98);
 }
 .section-title {
   font-size: 1.5em;
@@ -597,6 +723,11 @@ onBeforeUnmount(() => {
   margin-bottom: 0;
   margin-top: 1%;
   padding-left: 1%;
+  white-space: nowrap;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .status-section {
   font-size: 1em;
@@ -653,7 +784,7 @@ onBeforeUnmount(() => {
 .charts-section {
   display: flex;
   gap: 0.8em;
-  flex: 1;
+  flex: 10;
   min-height: 0;
   overflow: hidden;
   padding-bottom: 1vh;
@@ -769,7 +900,8 @@ onBeforeUnmount(() => {
 /* 图表说明 */
 .chart-note {
   width: 100%;
-  margin-top: 0.3125em;
+  flex: 1;
+  margin-top: 0;
   padding: 0.3125em;
   border-radius: 0.3125em;
   background-color: #f8f9fa;
@@ -921,6 +1053,10 @@ onBeforeUnmount(() => {
   .monitor-container {
     padding: 0.3em;
   }
+  /* 只在移动端竖屏时显示折叠按钮 */
+  .toggle-btn {
+    display: flex;
+  }
   
   .chart-header {
     margin: 0.5% 0;
@@ -948,6 +1084,7 @@ onBeforeUnmount(() => {
   
   .charts-section {
     gap: 0.5em;
+    height: 20vh;
   }
   
   .waveform-container,
@@ -969,6 +1106,35 @@ onBeforeUnmount(() => {
   .breath-status-text {
     font-size: 0.9em;
     padding: 0.25em 0.5em;
+  }
+  
+  .chart-title-group {
+    gap: 0.2em;
+  }
+}
+
+/* 横屏专用样式 */
+@media screen and (orientation: landscape) and (max-height: 600px) {
+  /* 横屏时隐藏折叠按钮 */
+  .toggle-btn {
+    display: none !important;
+  }
+  
+  .chart-header {
+    margin: 0.5% 1%;
+  }
+  
+  .section-title {
+    font-size: 1.1em;
+  }
+  
+  .charts-section {
+    height: 85vh;
+  }
+  
+  .chart-note {
+    margin: 0.1em 0em;
+    padding: 0em;
   }
 }
 </style>

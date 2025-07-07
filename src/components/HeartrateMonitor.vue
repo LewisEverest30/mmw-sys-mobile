@@ -1,20 +1,30 @@
 <template>
-  <div class="root-container">
-    <div class="monitor-container">
+  <div class="root-container" :class="{ expanded: isExpanded, collapsed: !isExpanded }">
+    <div class="monitor-container" :class="{ expanded: isExpanded, collapsed: !isExpanded }">
       <div class="chart-header">
-        <h3 class="section-title">心率监测</h3>
+        <div class="chart-title-group">
+          <div @click="toggle" class="toggle-btn">
+            <svg
+              :class="['triangle-icon', isExpanded ? 'triangle-down' : 'triangle-right']"
+              width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"
+            >
+              <polygon points="5,4 11,4 8,10" :fill="isExpanded ? '#666' : '#666'" style="stroke:none;" />
+            </svg>
+          </div>
+          <h3 class="section-title">心率监测</h3>
+        </div>
         <div class="status-text" :class="statusClass">
           <span class="status-text-label">心跳次数: </span>{{ heartRateText }}
         </div>
       </div>
-      <div ref="chartRef" class="chart-container"></div>
+      <div v-if="isExpanded" ref="chartRef" class="chart-container"></div>
     </div>
   </div>
 </template>
 
 
-<script setup lang="ts">
-import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
+<script setup lang="ts" name="HeartrateMonitor">
+import { ref, reactive, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import * as echarts from 'echarts'
 import type { ECharts } from 'echarts'
@@ -28,6 +38,7 @@ const route = useRoute()
 const userId = computed(() => route.params.userId as string)
 
 // 状态定义
+const isExpanded = ref(true)
 const tooltip = ref('每秒心脏跳动的次数， 60-100为正常')
 const heartRate = ref(1)
 const chartRef = ref<HTMLElement | null>(null)
@@ -35,6 +46,10 @@ const chartData = ref<number[]>([])
 const timeStamps = ref<number[]>([])
 const intervalId = ref<number | null>(null)
 const isInBed = ref<boolean | null>(null)
+// 折叠按钮切换
+const toggle = () => {
+  isExpanded.value = !isExpanded.value
+}
 
 let chart: ECharts | null = null
 let resizeObserver: ResizeObserver | null = null
@@ -227,21 +242,42 @@ const resizeChart = () => {
   }
 }
 
+// 监听展开状态变化
+watch(isExpanded, async (newVal) => {
+  if (newVal) {
+    await nextTick()
+    if (chartRef.value) {
+      if (chart) chart.dispose()
+      chart = echarts.init(chartRef.value)
+      if (chartData.value.length > 0) {
+        chart.setOption(getChartOption(
+          chartData.value.map(rate => rate === -1 || rate === -2 ? null : rate),
+          timeStamps.value.map(point => convertTimestampToTimeHM(point))
+        ))
+      }
+      if (resizeObserver) resizeObserver.disconnect()
+      resizeObserver = new ResizeObserver(() => {
+        resizeChart()
+      })
+      resizeObserver.observe(chartRef.value)
+    }
+  } else {
+    if (chart) {
+      chart.dispose()
+      chart = null
+    }
+    if (resizeObserver) {
+      resizeObserver.disconnect()
+      resizeObserver = null
+    }
+  }
+}, { immediate: true })
+
 // 生命周期钩子
 onMounted(async () => {
-  if (chartRef.value) {
-    chart = echarts.init(chartRef.value)
-  }
-  // await updateChart()
   updateChart() // 使用模拟数据
-
   startUpdatingChart()
-  if (chartRef.value) {
-    resizeObserver = new ResizeObserver(() => {
-      resizeChart()
-    })
-    resizeObserver.observe(chartRef.value)
-  }
+  // 图表初始化由 watch 统一处理
 })
 
 onBeforeUnmount(() => {
@@ -249,14 +285,12 @@ onBeforeUnmount(() => {
     chart.dispose()
     chart = null
   }
-  
   if (intervalId.value) {
     clearInterval(intervalId.value)
     intervalId.value = null
   }
-
-  if (resizeObserver && chartRef.value) {
-    resizeObserver.unobserve(chartRef.value)
+  if (resizeObserver) {
+    resizeObserver.disconnect()
     resizeObserver = null
   }
 })
@@ -266,18 +300,21 @@ onBeforeUnmount(() => {
 /* 根容器：居中 + 灰底 */
 .root-container {
   width: 100%;
-  height: 100%;
+  /* height: 100vh; */
+  height: auto;
   display: flex;
   justify-content: center;
   align-items: center;
   background-color: #f0f4f8;
   font-family: 'Arial', sans-serif;
+  /* min-height: 10vh; */
 }
 
 /* 白色内容卡片 */
 .monitor-container {
   width: 100%;
-  height: 100%;
+  height: auto;
+  /* height: 100%; */
   background: #fff;
   border-radius: 0.625em;
   box-shadow: 0 0.125em 0.25em rgba(0, 0, 0, 0.1);
@@ -285,8 +322,26 @@ onBeforeUnmount(() => {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
+  gap: 0.625em;
+  /* min-height: fit-content; */
+}
+
+.root-container.expanded {
+  height: 100vh;
+  /* height: auto; */
+}
+.root-container.collapsed {
+  height: auto;
+}
+
+.monitor-container.expanded {
+  height: 100%;
+  /* height: auto; */
+}
+.monitor-container.collapsed {
+  height: auto;     /* 跟随内容 */
 }
 
 /* 标题区：左边时间信息 + 右边状态 */
@@ -296,6 +351,57 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   align-items: center;
   margin: 1% 2%;
+  flex: 2;
+}
+
+.chart-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  flex: 1 1 0%;
+  min-width: 0;
+}
+
+/* 折叠按钮 - 默认隐藏 */
+.toggle-btn {
+  display: none;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 0.25em;
+  cursor: pointer;
+  font-size: 1em;
+  transition: background 0.3s;
+  user-select: none;
+  align-items: center;
+  justify-content: center;
+  height: 2em;
+  width: 2em;
+}
+
+.triangle-icon {
+  display: inline-block;
+  vertical-align: middle;
+  transition: transform 0.2s;
+  width: 1em;
+  height: 1em;
+}
+.triangle-down {
+  transform: rotate(0deg);
+}
+.triangle-right {
+  transform: rotate(-90deg);
+}
+
+
+.toggle-btn:hover {
+  background-color: #e9ecef;
+  color: #333;
+}
+
+.toggle-btn:active {
+  background-color: #dee2e6;
+  transform: scale(0.98);
 }
 .section-title {
   font-size: 1.5em;
@@ -304,6 +410,11 @@ onBeforeUnmount(() => {
   margin-bottom: 0;
   margin-top: 1%;
   padding-left: 1%;
+  white-space: nowrap;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .status-text {
   font-size: 1em;
@@ -333,7 +444,8 @@ onBeforeUnmount(() => {
 /* 图表区域 */
 .chart-container {
   width: 100%;
-  height: calc(100% - 1vh);
+  height: 100%;
+  flex: 10;
   border-radius: 1.2em;
   overflow: hidden;
   box-shadow: 
@@ -342,6 +454,8 @@ onBeforeUnmount(() => {
     ;
   transition: all 0.3s ease;
   font-size: 1em;
+  padding-bottom: 1vh;
+  display: block;
 }
 
 /* 响应式设计 */
@@ -364,6 +478,10 @@ onBeforeUnmount(() => {
   .monitor-container {
     padding: 0.3em;
   }
+  /* 只在移动端竖屏时显示折叠按钮 */
+  .toggle-btn {
+    display: flex;
+  }
   .chart-header {
     margin: 0.5% 0;
   }
@@ -379,26 +497,18 @@ onBeforeUnmount(() => {
     font-size: 0.8em;
   }
   .chart-container {
-    height: 80vh;
+    height: 20vh;
     border-radius: 0.8em;
-  }
-  .chart-note {
-    font-size: 0.6em;
-    padding: 0.2em;
-  }
-  .heart-status-icon {
-    width: 0.4em;
-    height: 0.4em;
-  }
-  .heart-status-text {
-    font-size: 0.6em;
-    padding: 0.2em 0.4em;
-    margin-left: 0.2em;
   }
 }
 
 /* 横屏专用样式 */
 @media screen and (orientation: landscape) and (max-height: 600px) {
+  /* 横屏时隐藏折叠按钮 */
+  .toggle-btn {
+    display: none !important;
+  }
+  
   .chart-header {
     margin: 0.5% 1%;
   }
@@ -409,11 +519,6 @@ onBeforeUnmount(() => {
   
   .chart-container {
     height: 85vh;
-  }
-  
-  .chart-note {
-    margin-top: 0.2em;
-    padding: 0.2em;
   }
 }
 </style>

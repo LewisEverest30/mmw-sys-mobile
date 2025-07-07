@@ -261,7 +261,8 @@ onBeforeUnmount(() => {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   overflow: hidden;
   position: relative;
-  height: 300px;
+  /* height: 300px; */
+  height: auto;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -439,7 +440,8 @@ onBeforeUnmount(() => {
   }
   
   .portrait-item {
-    height: 320px;
+    /* height: 320px; */
+    height: auto;
   }
   
   .grid-container {
@@ -460,8 +462,10 @@ onBeforeUnmount(() => {
   }
   
   .portrait-item {
-    height: 280px;
-    margin-bottom: 10px;
+    /* height: 280px; */
+    height: auto;
+    /* margin-bottom: 10px; */
+    max-height: 30vh;
   }
   
   .header {
