@@ -27,7 +27,7 @@ export const constantRoutes: Array<RouteRecordRaw> = [
   },
 
   // 404 page must be placed at the end !!!
-  { path: '/:pathMatch(.*)*', redirect: '/404', hidden: true }
+  { path: '/:pathMatch(.*)*', redirect: '/404', meta: { hidden: true } }
 ]
 
 const router = createRouter({

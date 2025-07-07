@@ -2,7 +2,6 @@ import axios from "axios";
 import type { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
 import { ElMessageBox, ElMessage } from "element-plus";
 import { useUserStore } from "@/store/user";
-import { getToken } from "@/utils/auth";
 
 // 响应数据接口
 export interface ApiResponse<T = any> {
@@ -29,12 +28,11 @@ class HttpClient {
     // 请求拦截器
     this.instance.interceptors.request.use(
       (config) => {
-        // 注意：在非组件环境中不能直接使用useUserStore().token
-        // 而是应该使用 getToken()，这确保了我们总是获取最新的token
-        const token = getToken();
-        if (token) {
-          (config.headers as any)['X-Token'] = token;
-        }
+        // 如果需要token认证，可以在这里添加
+        // const userStore = useUserStore();
+        // if (userStore.token) {
+        //   (config.headers as any)['X-Token'] = userStore.token;
+        // }
         return config;
       },
       (error) => {
