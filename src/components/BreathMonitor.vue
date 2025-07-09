@@ -66,31 +66,7 @@
         </div>
       </div>
 
-      <!-- 底部提示 -->
-      <div v-if="isExpanded" class="chart-note">
-        <div class="status-info">
-          <span class="breath-status-icon" :class="breathStatusClass"></span>
-          <span class="breath-status-text">{{ breathStatusMessage }}</span>
-        </div>
-        
-        <div class="info-icons">
-          <!-- 呼吸暂停提示 -->
-          <div v-if="isInBed && breathWarningId === 21" class="info-section">
-            <div class="info-icon" @mouseover="showApneaInfo = true" @mouseleave="showApneaInfo = false">i</div>
-            <div v-if="showApneaInfo" class="tooltip">
-              夜间呼吸暂停是一种睡眠时呼吸暂时停止的现象，可能导致缺氧和睡眠质量下降，需及时关注和治疗。
-            </div>
-          </div>
-          
-          <!-- 通气阻塞提示 -->
-          <div v-if="isInBed && breathWarningId === 22" class="info-section">
-            <div class="info-icon" @mouseover="showObstructionInfo = true" @mouseleave="showObstructionInfo = false">i</div>
-            <div v-if="showObstructionInfo" class="tooltip">
-              夜间通气阻塞是指睡眠时上呼吸道部分或完全堵塞，导致呼吸暂停或气流受限，影响正常呼吸和睡眠质量。
-            </div>
-          </div>
-        </div>
-      </div>
+      <!-- ...已移除 chart-note 区域... -->
     </div>
   </div>
 </template>
@@ -132,30 +108,7 @@ const toggle = () => {
   isExpanded.value = !isExpanded.value
 }
 
-// 计算呼吸状态消息
-const breathStatusMessage = computed(() => {
-  if (!isInBed.value) {
-    return '监测对象离开，无法检测。'
-  }
-  if (breathWarningId.value === 21) {
-    return '检测到呼吸暂停异常，请注意！'
-  }
-  if (breathWarningId.value === 22) {
-    return '检测到通气阻塞异常，请注意！'
-  }
-  return '呼吸状态正常'
-})
-
-// 计算呼吸状态图标样式
-const breathStatusClass = computed(() => {
-  if (!isInBed.value) {
-    return 'breath-status-out-of-bed'
-  }
-  if (breathWarningId.value === 21 || breathWarningId.value === 22) {
-    return 'breath-status-warning'
-  }
-  return 'breath-status-normal'
-})
+// ...已移除 chart-note 相关逻辑...
 
 // 呼吸波形图表配置函数
 const getWaveformChartOption = (displayData: number[], xAxisData: string[]) => {
@@ -904,122 +857,7 @@ onBeforeUnmount(() => {
   font-size: 1em;
 }
 
-/* 图表说明 */
-.chart-note {
-  width: 100%;
-  flex: 1;
-  margin-top: 0;
-  padding: 0.3125em;
-  border-radius: 0.3125em;
-  background-color: #f8f9fa;
-  font-size: 0.75em;
-  color: #666;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.3125em;
-  flex-shrink: 0;
-}
-
-/* 状态信息 */
-.status-info {
-  display: flex;
-  align-items: center;
-  gap: 0.3125em;
-}
-
-/* 呼吸状态图标 */
-.breath-status-icon {
-  width: 0.5em;
-  height: 0.5em;
-  border-radius: 50%;
-}
-
-.breath-status-normal {
-  background-color: #4CAF50;
-}
-
-.breath-status-warning {
-  background-color: #F44336;
-}
-
-.breath-status-out-of-bed {
-  background-color: #FFA500;
-}
-
-/* 呼吸状态文字 */
-.breath-status-text {
-  font-size: 1em;
-  font-weight: bold;
-  color: #333;
-  padding: 0.3125em 0.625em;
-  text-align: center;
-}
-
-/* 信息图标组 */
-.info-icons {
-  display: flex;
-  align-items: center;
-  gap: 0.5em;
-}
-
-/* 信息区域 */
-.info-section {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-/* 信息图标 */
-.info-icon {
-  width: 1.75em;
-  height: 1.75em;
-  border-radius: 50%;
-  background: #007bff;
-  color: white;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: help;
-  font-size: 0.75em;
-  font-weight: bold;
-  flex-shrink: 0;
-  transition: background-color 0.2s ease;
-}
-
-.info-icon:hover {
-  background-color: #0056b3;
-}
-
-.tooltip {
-  position: absolute;
-  background: rgba(0, 0, 0, 0.9);
-  color: white;
-  padding: 0.5em 0.75em;
-  border-radius: 0.375em;
-  font-size: 1em;
-  z-index: 1000;
-  min-width: 15em;
-  max-width: 20em;
-  white-space: normal;
-  bottom: 100%;
-  right: 0;
-  margin-bottom: 0.5em;
-  box-shadow: 0 0.25em 0.5em rgba(0, 0, 0, 0.2);
-  pointer-events: none;
-}
-
-.tooltip::before {
-  content: '';
-  position: absolute;
-  top: 100%;
-  right: 1em;
-  width: 0;
-  height: 0;
-  border-left: 0.375em solid transparent;
-  border-right: 0.375em solid transparent;
-  border-top: 0.375em solid rgba(0, 0, 0, 0.9);
-}
+/* ...已移除 chart-note 相关样式... */
 
 /* 动画效果 */
 @keyframes pulse {

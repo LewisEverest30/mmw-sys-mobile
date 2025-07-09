@@ -18,10 +18,6 @@
         </div>
       </div>
       <div v-if="isExpanded" ref="chartRef" class="chart-container"></div>
-      <div v-if="isExpanded" class="chart-note">
-        <span class="heart-status-icon" :class="heartStatusClass"></span>
-        <span class="heart-status-text">{{ statusMessage }}</span>
-      </div>
     </div>
   </div>
 </template>
@@ -72,29 +68,6 @@ const statusClass = computed(() => {
   }
   return status.value === 0 ? 'status-normal' : 'status-abnormal'
 })
-
-const statusMessage = computed(() => {
-  if (!isInBed.value) {
-    return '监测对象离开，无法检测。'
-  }
-  if (status.value === -1) {
-    return '您的节律数据质量较差导致无法判断是否正常'
-  }
-  return status.value === 0
-    ? '您处于窦性心律，请继续保持良好的生活习惯。'
-    : '您可能发生了心律失常，可能是由于睡眠不足或营养不良。如果多次出现异常，请及时就医。'
-})
-
-const heartStatusClass = computed(() => {
-  if (!isInBed.value) {
-    return 'heart-status-out-of-bed'
-  }
-  if (status.value === -1) {
-    return 'heart-status-dirty'
-  }
-  return status.value === 0 ? 'heart-status-normal' : 'heart-status-warning'
-})
-
 
 // 图表配置函数
 const getChartOption = (displayData: number[], xAxisData?: string[]) => {
@@ -432,56 +405,6 @@ onBeforeUnmount(() => {
   display: block;
 }
 
-/* 图表下方提示条 */
-.chart-note {
-  width: 100%;
-  flex: 1;
-  margin-top: 0;
-  padding: 0.3125em;
-  border-radius: 0.3125em;
-  background-color: #f8f9fa;
-  font-size: 0.75em;
-  color: #666;
-  display: flex;
-  align-items: center;
-  gap: 0.3125em;
-  flex-shrink: 0;
-}
-
-/* 小圆点图标 */
-.heart-status-icon {
-  width: 0.5em;
-  height: 0.5em;
-  border-radius: 50%;
-  margin-right: 0.3125em;
-}
-
-.heart-status-normal {
-  background-color: #4CAF50;
-}
-
-.heart-status-warning {
-  background-color: #F44336;
-}
-
-.heart-status-dirty {
-  background-color: #808080;
-}
-
-.heart-status-out-of-bed {
-  background-color: #FFA500;
-}
-
-/* 小圆点右边的文字 */
-.heart-status-text {
-  font-size: 1em;
-  font-weight: bold;
-  color: #333;
-  padding: 0.3125em 0.625em;
-  margin-left: 0.3125em;
-  text-align: center;
-}
-
 /* 响应式设计 */
 @media (max-width: 1200px) {
   .chart-header {
@@ -524,19 +447,6 @@ onBeforeUnmount(() => {
     height: 20vh;
     border-radius: 0.8em;
   }
-  .chart-note {
-    font-size: 0.6em;
-    padding: 0.2em;
-  }
-  .heart-status-icon {
-    width: 0.4em;
-    height: 0.4em;
-  }
-  .heart-status-text {
-    font-size: 0.6em;
-    padding: 0.2em 0.4em;
-    margin-left: 0.2em;
-  }
   .chart-title-group {
     gap: 0.2em;
   }
@@ -559,20 +469,6 @@ onBeforeUnmount(() => {
   
   .chart-container {
     height: 85vh;
-  }
-  
-  .chart-note {
-    margin: 0.1em 0em;
-    padding: 0em;
-  }
-  .heart-status-icon {
-    width: 0.4em;
-    height: 0.4em;
-  }
-  .heart-status-text {
-    font-size: 0.4em;
-    padding: 0.1em 0.4em;
-    margin-left: 0.2em;
   }
 }
 </style>
