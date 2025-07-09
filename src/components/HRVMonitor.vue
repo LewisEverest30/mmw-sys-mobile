@@ -141,7 +141,8 @@ const updateChart = async () => {
 // 图表配置函数
 const getChartOption = (displayData: (number | null)[], xAxisData: string[]) => {
   const fontSize = calculateEchartsFontSize(chartRef.value, 0.9) // 获取字体大小
-  const lineWidth = calculateEchartsLineWidth(chartRef.value, 1) // 获取线宽
+  const lineWidth = calculateEchartsLineWidth(chartRef.value, 0.8) // 获取线宽
+  const mainLineColor = 'rgb(139, 92, 246)'
 
   return {
     tooltip: {
@@ -208,6 +209,14 @@ const getChartOption = (displayData: (number | null)[], xAxisData: string[]) => 
       data: displayData,
       smooth: true,
       symbol: 'none',
+      lineStyle: {
+        color: mainLineColor,
+        width: lineWidth,
+        shadowBlur: Math.max(3, lineWidth * 0.8),
+        shadowColor: mainLineColor + '40',
+        shadowOffsetX: Math.max(1, lineWidth * 0.1),
+        shadowOffsetY: Math.max(1, lineWidth * 0.1),        
+      },
       areaStyle: {
         color: {
           type: 'linear',
