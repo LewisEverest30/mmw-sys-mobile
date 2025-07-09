@@ -184,7 +184,7 @@ const getWaveformChartOption = (displayData: number[], xAxisData: string[]) => {
       left: '3%',
       right: '10%',
       bottom: '15%',
-      top: '20%',
+      top: '25%',
       containLabel: true
     },
     xAxis: {
@@ -325,7 +325,7 @@ const getRingChartOption = (seriesData: [number, number][], shouldShowData: bool
       left: '3%',
       right: '5%',
       bottom: '15%',
-      top: '20%',
+      top: '25%',
       containLabel: true
     },
     xAxis: {
@@ -665,7 +665,7 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   align-items: center;
   margin: 1% 2%;
-  flex: 2;
+  /* flex: 2; */
 }
 
 .chart-title-group {

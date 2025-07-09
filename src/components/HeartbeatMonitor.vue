@@ -322,7 +322,7 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   align-items: center;
   margin: 1% 2%;
-  flex: 2;
+  /* flex: 2; */
 }
 
 .chart-title-group {
