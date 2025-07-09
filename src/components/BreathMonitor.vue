@@ -167,6 +167,10 @@ const getWaveformChartOption = (displayData: number[], xAxisData: string[]) => {
   const xTickInterval = containerWidth < 250 ? samplingRate * 2 : samplingRate
   const ySplitNumber = containerHeight < 250 ? 3 : 5
 
+  const isMobile = window.innerWidth <= 768
+  const xAxisName = isMobile ? '' : '时间(s)'
+  const yAxisName = isMobile ? '' : '归一化幅度'
+
   return {
     tooltip: {
       trigger: 'axis',
@@ -191,7 +195,7 @@ const getWaveformChartOption = (displayData: number[], xAxisData: string[]) => {
       type: 'category',
       min: 0,
       max: 1000,
-      name: '时间(s)',
+      name: xAxisName,
       nameLocation: 'center',
       nameGap: 25,
       nameTextStyle: {
@@ -232,7 +236,7 @@ const getWaveformChartOption = (displayData: number[], xAxisData: string[]) => {
     },
     yAxis: {
       type: 'value',
-      name: '归一化幅度',
+      name: yAxisName,
       nameGap: 8,
       nameTextStyle: {
         color: '#666',
@@ -306,7 +310,10 @@ const getRingChartOption = (seriesData: [number, number][], shouldShowData: bool
   const yTickInterval = containerHeight < 250 ? 2 : 1
   const xSplitNumber = containerWidth < 250 ? 4 : 5
   const ySplitNumber = containerHeight < 250 ? 3 : 5
-  console.log("fontSize:", fontSize, "lineWidth:", lineWidth, "xTickInterval:", xTickInterval, "yTickInterval:", yTickInterval, "containerWidth:", containerWidth, "containerHeight:", containerHeight)
+
+  const isMobile = window.innerWidth <= 768
+  const xAxisName = isMobile ? '' : '时间(s)'
+  const yAxisName = isMobile ? '' : '归一化幅度'
 
   return {
     tooltip: {
@@ -332,7 +339,7 @@ const getRingChartOption = (seriesData: [number, number][], shouldShowData: bool
       type: 'value',
       min: 0,
       max: 1.01,
-      name: '流量',
+      name: xAxisName,
       nameLocation: 'center',
       nameGap: 25,
       nameTextStyle: {
@@ -368,7 +375,7 @@ const getRingChartOption = (seriesData: [number, number][], shouldShowData: bool
     },
     yAxis: {
       type: 'value',
-      name: '流速',
+      name: yAxisName,
       nameGap: 8,
       nameTextStyle: {
         color: '#666',
