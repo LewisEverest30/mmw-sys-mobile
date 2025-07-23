@@ -35,7 +35,6 @@
 
           <!-- 离床状态 -->
           <div class="status-item" v-if="!isInBed">
-            <img src="/breath_imgs/lung.svg" alt="通气阻塞" class="status-icon status-active" />
             <h3 class="status-text-out-of-bed">已离床</h3>
           </div>
         </div>
@@ -453,7 +452,7 @@ const updateWarning = async () => {
     const warningRes = await getWarning(userId.value)
     if (warningRes.data) {
       breathWarningId.value = warningRes.data.breath_warning_id
-      breathWarningId.value = 22
+      // breathWarningId.value = 22
     }
   } catch (error) {
     console.error('Error updating warning:', error)

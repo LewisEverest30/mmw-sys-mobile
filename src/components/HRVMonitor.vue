@@ -240,8 +240,8 @@ const getChartOption = (displayData: (number | null)[], xAxisData: string[]) => 
 // 启动定时更新
 const startUpdatingChart = () => {
   intervalId.value = window.setInterval(() => {
-    // updateChart()
-    useMockData() // 使用模拟数据
+    updateChart()
+    // useMockData() // 使用模拟数据
   }, 5000)
 }
 
@@ -282,8 +282,8 @@ watch(isExpanded, async (newVal) => {
 
 // 生命周期钩子
 onMounted(async () => {
-  // await updateChart()
-  useMockData() // 使用模拟数据
+  await updateChart()
+  // useMockData() // 使用模拟数据
 
   startUpdatingChart()
   // 图表初始化由 watch 统一处理

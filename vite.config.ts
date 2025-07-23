@@ -84,8 +84,8 @@ export default defineConfig({
     cors: true, // 允许跨域
     proxy: {
       '/api': {
-        target: 'http://10.129.189.217:5000',
-        // target: "http://10.29.253.27:5001",
+        // target: 'http://10.129.189.217:5000',
+        target: "http://10.29.253.27:5000",
         changeOrigin: true,
         // rewrite: (path) => path.replace(/^\/api/, '')
       }

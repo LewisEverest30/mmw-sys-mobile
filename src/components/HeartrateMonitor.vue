@@ -72,9 +72,9 @@ const heartRateText = computed(() => {
 // 更新图表数据
 const updateChart = async () => {
   try {
-    // const res = await getHrWaveform(userId.value)
+    const res = await getHrWaveform(userId.value)
 
-    const res = generateHeartRateMockData() // 使用模拟数据函数代替实际API调用
+    // const res = generateHeartRateMockData() // 使用模拟数据函数代替实际API调用
 
     if (!res?.data) return
 
