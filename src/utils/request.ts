@@ -95,19 +95,51 @@ class HttpClient {
     return this.instance.get(url, config).then(res => res.data);
   }
 
-  // 封装 POST 请求
-  public post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+  // 封装 POST 请求 - 添加请求体泛型 D
+  public post<T = any, D = any>(
+    url: string, 
+    data?: D, 
+    config?: AxiosRequestConfig
+  ): Promise<ApiResponse<T>> {
     return this.instance.post(url, data, config).then(res => res.data);
   }
 
-  // 封装 PUT 请求
-  public put<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+  // 封装 PUT 请求 - 添加请求体泛型 D
+  public put<T = any, D = any>(
+    url: string, 
+    data?: D, 
+    config?: AxiosRequestConfig
+  ): Promise<ApiResponse<T>> {
     return this.instance.put(url, data, config).then(res => res.data);
+  }
+
+  // 封装 PATCH 请求 - 新增，通常用于部分更新
+  public patch<T = any, D = any>(
+    url: string, 
+    data?: D, 
+    config?: AxiosRequestConfig
+  ): Promise<ApiResponse<T>> {
+    return this.instance.patch(url, data, config).then(res => res.data);
   }
 
   // 封装 DELETE 请求
   public delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
     return this.instance.delete(url, config).then(res => res.data);
+  }
+
+  // 封装文件上传请求
+  public upload<T = any>(
+    url: string,
+    formData: FormData,
+    config?: AxiosRequestConfig
+  ): Promise<ApiResponse<T>> {
+    return this.instance.post(url, formData, {
+      ...config,
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        ...config?.headers,
+      },
+    }).then(res => res.data);
   }
 }
 
